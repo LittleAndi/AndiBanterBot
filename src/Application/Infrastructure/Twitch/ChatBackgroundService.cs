@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using Application.Infrastructure.OpenAI;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using TwitchLib.Client;
 using TwitchLib.Client.Events;
@@ -11,9 +12,10 @@ namespace Application.Infrastructure.Twitch;
 public class ChatBackgroundService : IHostedService
 {
     readonly TwitchClient client;
+    private readonly IAIClient aiClient;
     private readonly ILogger<ChatBackgroundService> logger;
 
-    public ChatBackgroundService(ILogger<ChatBackgroundService> logger, ChatOptions options)
+    public ChatBackgroundService(IAIClient aiClient, ILogger<ChatBackgroundService> logger, ChatOptions options)
     {
         ConnectionCredentials credentials = new(options.Username, options.AccessToken);
         var clientOptions = new ClientOptions
@@ -31,6 +33,8 @@ public class ChatBackgroundService : IHostedService
         client.OnWhisperReceived += Client_OnWhisperReceived;
         client.OnNewSubscriber += Client_OnNewSubscriber;
         client.OnConnected += Client_OnConnected;
+
+        this.aiClient = aiClient;
         this.logger = logger;
     }
 
@@ -49,9 +53,21 @@ public class ChatBackgroundService : IHostedService
         logger.LogDebug("Whisper from {Username}: {Message}", e.WhisperMessage.Username, e.WhisperMessage.Message);
     }
 
-    private void Client_OnMessageReceived(object? sender, OnMessageReceivedArgs e)
+    private async void Client_OnMessageReceived(object? sender, OnMessageReceivedArgs e)
     {
         logger.LogDebug("{Channel} - {Username}: {Message}", e.ChatMessage.Channel, e.ChatMessage.Username, e.ChatMessage.Message);
+
+        if (e.ChatMessage.Username.Equals("andibanterbot", StringComparison.CurrentCultureIgnoreCase))
+        {
+            return;
+        }
+
+        if (e.ChatMessage.Message.Contains("andibanterbot", StringComparison.CurrentCultureIgnoreCase))
+        {
+            string prompt = e.ChatMessage.Message;
+            string completion = await aiClient.GetCompletion(prompt);
+            client.SendMessage(e.ChatMessage.Channel, completion);
+        }
     }
 
     private void Client_OnJoinedChannel(object? sender, OnJoinedChannelArgs e)
