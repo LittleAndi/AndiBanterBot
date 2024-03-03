@@ -50,9 +50,16 @@ public class ChatBackgroundService : IHostedService
         logger.LogDebug("New subscriber {Subscriber} in {Channel}", e.Subscriber.DisplayName, e.Channel);
     }
 
-    private void Client_OnWhisperReceived(object? sender, OnWhisperReceivedArgs e)
+    private async void Client_OnWhisperReceived(object? sender, OnWhisperReceivedArgs e)
     {
         logger.LogDebug("Whisper from {Username}: {Message}", e.WhisperMessage.Username, e.WhisperMessage.Message);
+
+        if (e.WhisperMessage.Username.Equals("littleandi77", StringComparison.CurrentCultureIgnoreCase))
+        {
+            var prompt = e.WhisperMessage.Message;
+            var completion = await aiClient.GetCompletion(prompt);
+            client.SendMessage("littleandi77", completion);
+        }
     }
 
     private async void Client_OnMessageReceived(object? sender, OnMessageReceivedArgs e)
