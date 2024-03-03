@@ -86,6 +86,9 @@ public class ChatBackgroundService : IHostedService
             || randomValue > 50)
         {
             string completion = await aiClient.GetAwareCompletion(messages);
+
+            logger.LogDebug("Completion: {Completion}", completion);
+
             client.SendMessage(e.ChatMessage.Channel, completion);
         }
     }
