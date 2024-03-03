@@ -14,6 +14,8 @@ public class ChatBackgroundService : IHostedService
     readonly TwitchClient client;
     private readonly IAIClient aiClient;
     private readonly ILogger<ChatBackgroundService> logger;
+    private readonly Random random = new((int)DateTime.Now.Ticks);
+    private readonly FixedQueue<string> messages = new(5);
 
     public ChatBackgroundService(IAIClient aiClient, ILogger<ChatBackgroundService> logger, ChatOptions options)
     {
@@ -57,22 +59,32 @@ public class ChatBackgroundService : IHostedService
     {
         logger.LogDebug("{Channel} - {Username}: {Message}", e.ChatMessage.Channel, e.ChatMessage.Username, e.ChatMessage.Message);
 
+        messages.Enqueue(e.ChatMessage.Message);
+        logger.LogDebug("Messages: {Messages}", string.Join(", ", messages));
+
         if (e.ChatMessage.Username.Equals("andibanterbot", StringComparison.CurrentCultureIgnoreCase))
         {
             return;
         }
 
-        if (e.ChatMessage.Message.Contains("andibanterbot", StringComparison.CurrentCultureIgnoreCase))
+        if (e.ChatMessage.Username.Equals("kofistreambot", StringComparison.CurrentCultureIgnoreCase))
         {
-            string prompt = e.ChatMessage.Message;
-            string completion = await aiClient.GetCompletion(prompt);
+            return;
+        }
+
+        var randomValue = random.Next(100);
+        logger.LogDebug("Random value: {RandomValue}", randomValue);
+
+        if (e.ChatMessage.Message.Contains("andibanterbot", StringComparison.CurrentCultureIgnoreCase)
+            || randomValue > 50)
+        {
+            string completion = await aiClient.GetAwareCompletion(messages);
             client.SendMessage(e.ChatMessage.Channel, completion);
         }
     }
 
     private void Client_OnJoinedChannel(object? sender, OnJoinedChannelArgs e)
     {
-        client.SendMessage(e.Channel, "Hey guys! I am a bot connected via TwitchLib!");
     }
 
     private void Client_OnLog(object? sender, OnLogArgs e)
@@ -90,5 +102,19 @@ public class ChatBackgroundService : IHostedService
     {
         client.Disconnect();
         return Task.CompletedTask;
+    }
+}
+
+internal class FixedQueue<T>(int capacity) : Queue<T>
+{
+    private readonly int _capacity = capacity;
+
+    public new void Enqueue(T item)
+    {
+        if (Count == _capacity)
+        {
+            Dequeue();
+        }
+        base.Enqueue(item);
     }
 }
