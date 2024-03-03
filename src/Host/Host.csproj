@@ -4,6 +4,11 @@
     <ProjectReference Include="..\Application\Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.1" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
@@ -11,4 +16,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Update="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+    <None Update="appsettings.Test.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+    <None Update="appsettings.Production.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+  
 </Project>
