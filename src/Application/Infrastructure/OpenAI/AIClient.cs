@@ -7,6 +7,7 @@ namespace Application.Infrastructure.OpenAI;
 public interface IAIClient
 {
     Task<string> GetCompletion(string prompt);
+    Task<string> GetAwareCompletion(IEnumerable<string> messages);
 }
 
 public class AIClient(OpenAIClientOptions options) : IAIClient
@@ -23,6 +24,23 @@ public class AIClient(OpenAIClientOptions options) : IAIClient
             You act as a female chatter, and you are intelligent and funny.
             Use short responses, usually max one sentence.
             If someone asks you to join a Stream Racer race, just say ""race"" or a scentence with ""race"" in it.";
+
+    public async Task<string> GetAwareCompletion(IEnumerable<string> messages)
+    {
+        var chatCompletionsOptions = new ChatCompletionsOptions
+        {
+            DeploymentName = "gpt-4-0125-preview",
+            ChoiceCount = 1,
+            Messages = {
+                new ChatRequestSystemMessage(SystemPrompt),
+                new ChatRequestUserMessage(messages.Select(msg => new ChatMessageTextContentItem(msg)))
+            }
+        };
+
+        Response<ChatCompletions> response = await client.GetChatCompletionsAsync(chatCompletionsOptions);
+        ChatResponseMessage chatResponseMessage = response.Value.Choices[0].Message;
+        return chatResponseMessage.Content;
+    }
 
     public async Task<string> GetCompletion(string prompt)
     {
