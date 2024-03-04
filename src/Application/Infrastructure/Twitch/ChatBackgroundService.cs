@@ -1,4 +1,5 @@
-﻿using Application.Infrastructure.OpenAI;
+﻿using System.Text.RegularExpressions;
+using Application.Infrastructure.OpenAI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using TwitchLib.Client;
@@ -9,7 +10,7 @@ using TwitchLib.Communication.Models;
 
 namespace Application.Infrastructure.Twitch;
 
-public class ChatBackgroundService : IHostedService
+public partial class ChatBackgroundService : IHostedService
 {
     readonly TwitchClient client;
     private readonly IAIClient aiClient;
@@ -97,9 +98,13 @@ public class ChatBackgroundService : IHostedService
     {
     }
 
+    [GeneratedRegex(@"Received: PING|Received: PONG|Writing: PONG")]
+    private static partial Regex PingPongRegex();
     private void Client_OnLog(object? sender, OnLogArgs e)
     {
-        logger.LogDebug("{LogTime}: {BotUsername} - {Message}", e.DateTime, e.BotUsername, e.Data);
+        if (PingPongRegex().IsMatch(e.Data)) return;
+
+        logger.LogDebug("{Message}", e.Data);
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -113,6 +118,7 @@ public class ChatBackgroundService : IHostedService
         client.Disconnect();
         return Task.CompletedTask;
     }
+
 }
 
 internal class FixedQueue<T>(int capacity) : Queue<T>
