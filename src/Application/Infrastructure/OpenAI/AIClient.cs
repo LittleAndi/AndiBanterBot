@@ -7,7 +7,7 @@ namespace Application.Infrastructure.OpenAI;
 public interface IAIClient
 {
     Task<string> GetCompletion(string prompt);
-    Task<string> GetAwareCompletion(IEnumerable<string> messages);
+    Task<string> GetAwareCompletion(IEnumerable<string> historyMessages);
 }
 
 public class AIClient(OpenAIClientOptions options) : IAIClient
@@ -21,7 +21,7 @@ public class AIClient(OpenAIClientOptions options) : IAIClient
             Respond like a teenage girl from California, but usually one or two sentences (max 500 characters).
             If someone asks you to join a Stream Racer race, just say ""race"" or a scentence with ""race"" in it.";
 
-    public async Task<string> GetAwareCompletion(IEnumerable<string> messages)
+    public async Task<string> GetAwareCompletion(IEnumerable<string> historyMessages)
     {
         var chatCompletionsOptions = new ChatCompletionsOptions
         {
@@ -29,7 +29,7 @@ public class AIClient(OpenAIClientOptions options) : IAIClient
             ChoiceCount = 1,
             Messages = {
                 new ChatRequestSystemMessage(SystemPrompt),
-                new ChatRequestUserMessage(messages.Select(msg => new ChatMessageTextContentItem(msg)))
+                new ChatRequestUserMessage(historyMessages.Select(msg => new ChatMessageTextContentItem(msg)))
             }
         };
 

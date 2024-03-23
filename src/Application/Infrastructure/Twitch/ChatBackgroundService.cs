@@ -16,7 +16,7 @@ public partial class ChatBackgroundService : IHostedService
     private readonly IAIClient aiClient;
     private readonly ILogger<ChatBackgroundService> logger;
     private readonly Random random = new((int)DateTime.Now.Ticks);
-    private readonly FixedQueue<string> messages = new(5);
+    private readonly FixedMessageQueue messages = new(5);
 
     public ChatBackgroundService(IAIClient aiClient, ILogger<ChatBackgroundService> logger, ChatOptions options)
     {
@@ -51,13 +51,27 @@ public partial class ChatBackgroundService : IHostedService
         logger.LogDebug("New subscriber {Subscriber} in {Channel}", e.Subscriber.DisplayName, e.Channel);
     }
 
+    [GeneratedRegex(@"^join channel (?<channel>[\S\d]*)$", RegexOptions.IgnoreCase | RegexOptions.Multiline)]
+    private static partial Regex WhisperChannelRegex();
+
     private async void Client_OnWhisperReceived(object? sender, OnWhisperReceivedArgs e)
     {
         logger.LogDebug("Whisper from {Username}: {Message}", e.WhisperMessage.Username, e.WhisperMessage.Message);
 
+        if (!e.WhisperMessage.Username.Equals("littleandi77", StringComparison.CurrentCultureIgnoreCase)) return;
+
+        var prompt = e.WhisperMessage.Message;
+
+        if (WhisperChannelRegex().IsMatch(prompt))
+        {
+            var match = WhisperChannelRegex().Match(prompt);
+            var channel = match.Groups["channel"].Value;
+            client.JoinChannel(channel);
+            return;
+        }
+
         if (e.WhisperMessage.Username.Equals("littleandi77", StringComparison.CurrentCultureIgnoreCase))
         {
-            var prompt = e.WhisperMessage.Message;
             var completion = await aiClient.GetCompletion(prompt);
             client.SendMessage("littleandi77", completion);
         }
@@ -67,8 +81,9 @@ public partial class ChatBackgroundService : IHostedService
     {
         logger.LogDebug("{Channel} - {Username}: {Message}", e.ChatMessage.Channel, e.ChatMessage.Username, e.ChatMessage.Message);
 
-        messages.Enqueue(e.ChatMessage.Message);
+        messages.Enqueue(new HistoryMessage(e.ChatMessage.Channel, e.ChatMessage.Username, e.ChatMessage.Message, DateTime.Now));
         logger.LogDebug("Messages: {Messages}", string.Join(", ", messages));
+        logger.LogDebug("Summary: {Summary}", messages.GetExtractiveSummary(e.ChatMessage.Channel));
 
         if (e.ChatMessage.Username.Equals("andibanterbot", StringComparison.CurrentCultureIgnoreCase))
         {
@@ -83,13 +98,31 @@ public partial class ChatBackgroundService : IHostedService
         var randomValue = random.Next(100);
         logger.LogDebug("Random value: {RandomValue}", randomValue);
 
-        if (e.ChatMessage.Message.Contains("andibanterbot", StringComparison.CurrentCultureIgnoreCase)
-            || randomValue > 50)
+        if (e.ChatMessage.Message.Contains("andibanterbot", StringComparison.CurrentCultureIgnoreCase))
         {
-            string completion = await aiClient.GetAwareCompletion(messages);
+            // If the message contains the bot's name, use only that message as a prompt
+            string completion = await aiClient.GetCompletion(e.ChatMessage.Message);
 
-            logger.LogDebug("Completion: {Completion}", completion);
+            logger.LogDebug("Completion ({Channel}): {Completion}", e.ChatMessage.Channel, completion);
 
+            if (e.ChatMessage.Channel.Equals("littleandi77", StringComparison.CurrentCultureIgnoreCase))
+            {
+                client.SendMessage(e.ChatMessage.Channel, completion);
+            }
+        }
+        else if (randomValue > 70)
+        {
+            // If this is a random response, use some of the chat history to generate a response
+            // This also empties the history queue
+
+            // Get the messages into a list
+            var historyMessages = new List<string>();
+            while (messages.TryDequeue(out var message))
+            {
+                historyMessages.Add(message.Message);
+            }
+            string completion = await aiClient.GetAwareCompletion(historyMessages);
+            logger.LogDebug("Completion ({Channel}): {Completion}", e.ChatMessage.Channel, completion);
             client.SendMessage(e.ChatMessage.Channel, completion);
         }
     }
@@ -121,16 +154,65 @@ public partial class ChatBackgroundService : IHostedService
 
 }
 
-internal class FixedQueue<T>(int capacity) : Queue<T>
+internal class FixedMessageQueue(int capacity) : Queue<HistoryMessage>
 {
     private readonly int _capacity = capacity;
 
-    public new void Enqueue(T item)
+    public new void Enqueue(HistoryMessage item)
     {
+        // Dequeue everything older than 5 minutes
+        DequeueOldMessages(5);
+
+        // If the queue is full, dequeue the oldest message
         if (Count == _capacity)
         {
             Dequeue();
         }
+
         base.Enqueue(item);
     }
+
+    private void DequeueOldMessages(int minutes)
+    {
+        var now = DateTime.Now;
+        while (Count > 0 && Peek().Timestamp < now - TimeSpan.FromMinutes(minutes))
+        {
+            Dequeue();
+        }
+    }
+
+    public string GetExtractiveSummary(string channel, int numSentences = 3)
+    {
+        var text = string.Join('\n', this.Where(hm => hm.Channel.Equals(channel)).Select(s => s.Message).ToArray());
+
+        if (string.IsNullOrEmpty(text))
+        {
+            return string.Empty;
+        }
+
+        // Split the text into sentences
+        var sentences = text.Split(new[] { '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+
+        // Calculate sentence scores based on factors like word count and position
+        var scores = new List<double>(sentences.Count);
+        for (int i = 0; i < sentences.Count; i++)
+        {
+            var sentence = sentences[i].Trim();
+            double score = sentence.Length; // Base score based on word count
+            if (i == 0 || i == sentences.Count - 1)
+            {
+                score *= 1.2; // Increase score for beginning and end sentences
+            }
+            scores.Add(score);
+        }
+
+        // Select the top scoring sentences
+        var selectedSentences = sentences.OrderByDescending(x => scores[sentences.IndexOf(x)]).Take(numSentences).ToList();
+
+        // Join the selected sentences and return the summary
+        return string.Join(" ", selectedSentences);
+    }
+
 }
+
+public record HistoryMessage(string Channel, string Username, string Message, DateTime Timestamp);
