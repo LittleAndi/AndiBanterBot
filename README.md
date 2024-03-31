@@ -2,14 +2,27 @@
 
 AndiBanterBot is a Twitch chat bot designed to enhance your Twitch stream with interactive features and engaging chat interactions.
 
+## Auth
+
+This goes for both the .NET version and the node version.
+
+I'm using the [Twitch CLI](https://github.com/twitchdev/twitch-cli) to create a User Access Token for Twitch.
+I'm using the following scopes `chat:edit chat:read user:bot channel:bot`.
+A Twitch CLI command for this could look like
+`twitch token --client-id <Client ID> -s 'user:bot chat:edit chat:read channel:bot' -u`
+
+`Client ID` is fetched from the [Developer Applications](https://dev.twitch.tv/console/apps) in Twitch Dev Console.
+
+You can either have the bot act as yourself, or you can create a separate Twitch Account for the bot.
+I'm using a separate account for the bot.
+
 ## .NET version
 
 This is the to be version when going forward. Most development will hopefully
 be made during streaming at https://www.twitch.tv/littleandi77.
 
-For now it is just an empty project.
-
-More will follow here...
+We now got a basic bot that responds when mentioned, but also randomly responds to messages in chat.
+Also, we're trying out making it aware of some of the chat history, but this seems to require some tuning.
 
 ## node version
 
