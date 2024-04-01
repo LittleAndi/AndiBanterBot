@@ -15,6 +15,7 @@ public partial class ChatBackgroundService : IHostedService
     readonly TwitchClient client;
     private readonly IAIClient aiClient;
     private readonly ILogger<ChatBackgroundService> logger;
+    private readonly ChatOptions options;
     private readonly Random random = new((int)DateTime.Now.Ticks);
     private readonly FixedMessageQueue messages = new(5);
 
@@ -39,6 +40,7 @@ public partial class ChatBackgroundService : IHostedService
 
         this.aiClient = aiClient;
         this.logger = logger;
+        this.options = options;
     }
 
     private void Client_OnConnected(object? sender, OnConnectedArgs e)
@@ -58,10 +60,12 @@ public partial class ChatBackgroundService : IHostedService
     {
         logger.LogDebug("Whisper from {Username}: {Message}", e.WhisperMessage.Username, e.WhisperMessage.Message);
 
-        if (!e.WhisperMessage.Username.Equals("littleandi77", StringComparison.CurrentCultureIgnoreCase)) return;
+        // Only accept whispers from the specified users
+        if (!options.AcceptWhispersFrom.Contains(e.WhisperMessage.Username, StringComparer.CurrentCultureIgnoreCase)) return;
 
         var prompt = e.WhisperMessage.Message;
 
+        // If the whisper is a command to join a channel, join the channel
         if (WhisperChannelRegex().IsMatch(prompt))
         {
             var match = WhisperChannelRegex().Match(prompt);
@@ -70,11 +74,9 @@ public partial class ChatBackgroundService : IHostedService
             return;
         }
 
-        if (e.WhisperMessage.Username.Equals("littleandi77", StringComparison.CurrentCultureIgnoreCase))
-        {
-            var completion = await aiClient.GetCompletion(prompt);
-            client.SendMessage("littleandi77", completion);
-        }
+        // Otherwise, generate a completion and send it to the main channel
+        var completion = await aiClient.GetCompletion(prompt);
+        client.SendMessage(options.Channel, completion);
     }
 
     private async void Client_OnMessageReceived(object? sender, OnMessageReceivedArgs e)
@@ -85,32 +87,31 @@ public partial class ChatBackgroundService : IHostedService
         logger.LogDebug("Messages: {Messages}", string.Join(", ", messages));
         logger.LogDebug("Summary: {Summary}", messages.GetExtractiveSummary(e.ChatMessage.Channel));
 
-        if (e.ChatMessage.Username.Equals("andibanterbot", StringComparison.CurrentCultureIgnoreCase))
+        // Ignore messages from some users (like yourself)
+        if (
+            e.ChatMessage.Username.Equals(options.Username, StringComparison.CurrentCultureIgnoreCase)
+            || options.IgnoreChatMessagesFrom.Contains(e.ChatMessage.Username, StringComparer.CurrentCultureIgnoreCase)
+        )
         {
             return;
         }
 
-        if (e.ChatMessage.Username.Equals("kofistreambot", StringComparison.CurrentCultureIgnoreCase))
-        {
-            return;
-        }
+        var randomResponseChance = random.NextDouble();
+        logger.LogDebug("Random value: {RandomValue}", randomResponseChance);
 
-        var randomValue = random.Next(100);
-        logger.LogDebug("Random value: {RandomValue}", randomValue);
-
-        if (e.ChatMessage.Message.Contains("andibanterbot", StringComparison.CurrentCultureIgnoreCase))
+        if (e.ChatMessage.Message.Contains(options.Username, StringComparison.CurrentCultureIgnoreCase))
         {
             // If the message contains the bot's name, use only that message as a prompt
             string completion = await aiClient.GetCompletion(e.ChatMessage.Message);
 
             logger.LogDebug("Completion ({Channel}): {Completion}", e.ChatMessage.Channel, completion);
 
-            if (e.ChatMessage.Channel.Equals("littleandi77", StringComparison.CurrentCultureIgnoreCase))
+            if (e.ChatMessage.Channel.Equals(options.Channel, StringComparison.CurrentCultureIgnoreCase))
             {
                 client.SendMessage(e.ChatMessage.Channel, completion);
             }
         }
-        else if (randomValue > 70)
+        else if (randomResponseChance > options.RandomResponseChance)
         {
             // If this is a random response, use some of the chat history to generate a response
             // This also empties the history queue
@@ -122,7 +123,7 @@ public partial class ChatBackgroundService : IHostedService
                 historyMessages.Add(message.Message);
             }
             string completion = await aiClient.GetAwareCompletion(historyMessages);
-            logger.LogDebug("Completion ({Channel}): {Completion}", e.ChatMessage.Channel, completion);
+            logger.LogDebug("History aware completion ({Channel}): {Completion}", e.ChatMessage.Channel, completion);
             client.SendMessage(e.ChatMessage.Channel, completion);
         }
     }

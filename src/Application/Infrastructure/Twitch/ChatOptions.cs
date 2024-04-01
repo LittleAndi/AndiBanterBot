@@ -10,4 +10,7 @@ public class ChatOptions : IConfigurationOptions
     public string Username { get; set; } = string.Empty;
     public string AccessToken { get; set; } = string.Empty;
     public string Channel { get; set; } = string.Empty;
+    public string[] AcceptWhispersFrom { get; set; } = [];
+    public string[] IgnoreChatMessagesFrom { get; set; } = [];
+    public double RandomResponseChance { get; set; } = 0.0;
 }
