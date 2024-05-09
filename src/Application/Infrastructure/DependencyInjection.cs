@@ -16,7 +16,7 @@ public static class DependencyInjection
     private static IServiceCollection AddTwitch(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddConfigurationOptions<ChatOptions>(configuration, out _);
-        services.AddHostedService<ChatBackgroundService>();
+        services.AddSingleton<IChatService, ChatService>();
         return services;
     }
 

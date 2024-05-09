@@ -1,64 +1,44 @@
 ﻿using System.Text.RegularExpressions;
 using Application.Infrastructure.OpenAI;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using TwitchLib.Client;
 using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
-using TwitchLib.Communication.Clients;
-using TwitchLib.Communication.Models;
 
 namespace Application.Infrastructure.Twitch;
 
-public partial class ChatBackgroundService : IHostedService
+public interface IChatService
 {
-    readonly TwitchClient client;
-    private readonly IAIClient aiClient;
-    private readonly ILogger<ChatBackgroundService> logger;
-    private readonly ChatOptions options;
+    public Task StartAsync(string accessToken, CancellationToken cancellationToken);
+}
+
+public partial class ChatService(IAIClient aiClient, ILoggerFactory loggerFactory, ILogger<ChatService> logger, ChatOptions options) : IChatService
+{
+    readonly TwitchClient client = new(loggerFactory: loggerFactory);
+    private readonly IAIClient aiClient = aiClient;
+    private readonly ILogger<ChatService> logger = logger;
+    private readonly ChatOptions options = options;
     private readonly Random random = new((int)DateTime.Now.Ticks);
     private readonly FixedMessageQueue messages = new(5);
 
-    public ChatBackgroundService(IAIClient aiClient, ILogger<ChatBackgroundService> logger, ChatOptions options)
+    private Task Client_OnConnected(object? sender, OnConnectedEventArgs e)
     {
-        ConnectionCredentials credentials = new(options.Username, options.AccessToken);
-        var clientOptions = new ClientOptions
-        {
-            MessagesAllowedInPeriod = 750,
-            ThrottlingPeriod = TimeSpan.FromSeconds(30)
-        };
-        WebSocketClient customClient = new(clientOptions);
-        client = new TwitchClient(customClient);
-        client.Initialize(credentials, options.Channel);
-
-        client.OnLog += Client_OnLog;
-        client.OnJoinedChannel += Client_OnJoinedChannel;
-        client.OnMessageReceived += Client_OnMessageReceived;
-        client.OnWhisperReceived += Client_OnWhisperReceived;
-        client.OnNewSubscriber += Client_OnNewSubscriber;
-        client.OnConnected += Client_OnConnected;
-
-        this.aiClient = aiClient;
-        this.logger = logger;
-        this.options = options;
+        logger.LogDebug("Connected to Twitch chats with {BotUsername}", e.BotUsername);
+        return Task.CompletedTask;
     }
 
-    private void Client_OnConnected(object? sender, OnConnectedArgs e)
-    {
-        logger.LogDebug("Connected to Twitch chat {Channel}", e.AutoJoinChannel);
-    }
-
-    private void Client_OnNewSubscriber(object? sender, OnNewSubscriberArgs e)
+    private Task Client_OnNewSubscriber(object? sender, OnNewSubscriberArgs e)
     {
         logger.LogDebug("New subscriber {Subscriber} in {Channel}", e.Subscriber.DisplayName, e.Channel);
+        return Task.CompletedTask;
     }
 
     [GeneratedRegex(@"^join channel (?<channel>[\S\d]*)$", RegexOptions.IgnoreCase | RegexOptions.Multiline)]
     private static partial Regex WhisperChannelRegex();
 
-    private async void Client_OnWhisperReceived(object? sender, OnWhisperReceivedArgs e)
+    private async Task Client_OnWhisperReceived(object? sender, OnWhisperReceivedArgs e)
     {
-        logger.LogDebug("Whisper from {Username}: {Message}", e.WhisperMessage.Username, e.WhisperMessage.Message);
+        logger.LogInformation("Whisper from {Username}: {Message}", e.WhisperMessage.Username, e.WhisperMessage.Message);
 
         // Only accept whispers from the specified users
         if (!options.AcceptWhispersFrom.Contains(e.WhisperMessage.Username, StringComparer.CurrentCultureIgnoreCase)) return;
@@ -70,22 +50,34 @@ public partial class ChatBackgroundService : IHostedService
         {
             var match = WhisperChannelRegex().Match(prompt);
             var channel = match.Groups["channel"].Value;
-            client.JoinChannel(channel);
+            await client.JoinChannelAsync(channel);
             return;
         }
 
         // Otherwise, generate a completion and send it to the main channel
         var completion = await aiClient.GetCompletion(prompt);
-        client.SendMessage(options.Channel, completion);
+        await client.SendMessageAsync(options.Channel, completion);
     }
 
-    private async void Client_OnMessageReceived(object? sender, OnMessageReceivedArgs e)
+    private async Task Client_OnMessageReceived(object? sender, OnMessageReceivedArgs e)
     {
-        logger.LogDebug("{Channel} - {Username}: {Message}", e.ChatMessage.Channel, e.ChatMessage.Username, e.ChatMessage.Message);
+        logger.LogInformation("{Channel} - {Username}: {Message}", e.ChatMessage.Channel, e.ChatMessage.Username, e.ChatMessage.Message);
+
+        // Check if the bot is connected to this channel
+        if (!client.JoinedChannels.Any(c => c.Channel.Equals(e.ChatMessage.Channel, StringComparison.CurrentCultureIgnoreCase)))
+        {
+            logger.LogWarning("Bot is not connected to channel {Channel}", e.ChatMessage.Channel);
+            return;
+        }
+
+        // foreach (var joinedChannel in client.JoinedChannels)
+        // {
+        //     logger.LogDebug("Joined channel: {Channel}", joinedChannel.Channel);
+        // }
 
         messages.Enqueue(new HistoryMessage(e.ChatMessage.Channel, e.ChatMessage.Username, e.ChatMessage.Message, DateTime.Now));
-        logger.LogDebug("Messages: {Messages}", string.Join(", ", messages));
-        logger.LogDebug("Summary: {Summary}", messages.GetExtractiveSummary(e.ChatMessage.Channel));
+        logger.LogTrace("Messages: {Messages}", string.Join(", ", messages));
+        logger.LogTrace("Summary: {Summary}", messages.GetExtractiveSummary(e.ChatMessage.Channel));
 
         // Ignore messages from some users (like yourself)
         if (
@@ -108,7 +100,15 @@ public partial class ChatBackgroundService : IHostedService
 
             if (e.ChatMessage.Channel.Equals(options.Channel, StringComparison.CurrentCultureIgnoreCase))
             {
-                client.SendMessage(e.ChatMessage.Channel, completion);
+                try
+                {
+                    await client.SendReplyAsync(e.ChatMessage.Channel, e.ChatMessage.Id, completion);
+                }
+                catch (System.Exception ex)
+                {
+                    logger.LogError(ex, "Error sending reply");
+                    throw;
+                }
             }
         }
         else if (randomResponseChance > options.RandomResponseChance)
@@ -123,34 +123,37 @@ public partial class ChatBackgroundService : IHostedService
                 historyMessages.Add(message.Message);
             }
             string completion = await aiClient.GetAwareCompletion(historyMessages);
-            logger.LogDebug("History aware completion ({Channel}): {Completion}", e.ChatMessage.Channel, completion);
-            client.SendMessage(e.ChatMessage.Channel, completion);
+            logger.LogInformation("History aware completion ({Channel}): {Completion}", e.ChatMessage.Channel, completion);
+            await client.SendMessageAsync(e.ChatMessage.Channel, completion);
         }
     }
 
-    private void Client_OnJoinedChannel(object? sender, OnJoinedChannelArgs e)
+    private Task Client_OnJoinedChannel(object? sender, OnJoinedChannelArgs e)
     {
+        logger.LogDebug("{BotUsername} joined channel {Channel}", e.BotUsername, e.Channel);
+        return Task.CompletedTask;
     }
 
     [GeneratedRegex(@"Received: PING|Received: PONG|Writing: PONG")]
     private static partial Regex PingPongRegex();
-    private void Client_OnLog(object? sender, OnLogArgs e)
-    {
-        if (PingPongRegex().IsMatch(e.Data)) return;
 
-        logger.LogDebug("{Message}", e.Data);
+    public async Task StartAsync(string accessToken, CancellationToken cancellationToken)
+    {
+        ConnectionCredentials credentials = new(options.Username, accessToken);
+        client.Initialize(credentials, options.Channel);
+
+        client.OnJoinedChannel += Client_OnJoinedChannel;
+        client.OnMessageReceived += Client_OnMessageReceived;
+        client.OnWhisperReceived += Client_OnWhisperReceived;
+        client.OnNewSubscriber += Client_OnNewSubscriber;
+        client.OnConnected += Client_OnConnected;
+
+        await client.ConnectAsync();
     }
 
-    public Task StartAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
-        client.Connect();
-        return Task.CompletedTask;
-    }
-
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        client.Disconnect();
-        return Task.CompletedTask;
+        await client.DisconnectAsync();
     }
 
 }
