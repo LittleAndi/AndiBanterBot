@@ -1,10 +1,6 @@
-﻿using Application;
-using Application.Infrastructure;
-using Application.Infrastructure.Twitch;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+﻿using Application.Infrastructure;
 using Serilog;
+using Host.Endpoints;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -13,8 +9,22 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
-    var host = CreateHostBuilder(args).Build();
-    await host.RunAsync();
+    var builder = WebApplication.CreateBuilder(args);
+    builder.Services.AddInfrastructure(builder.Configuration);
+    builder.Host.UseSerilog((hostContext, provider, loggerConfiguration) =>
+    {
+        loggerConfiguration
+            .ReadFrom.Configuration(hostContext.Configuration)
+            .ReadFrom.Services(provider)
+            .Enrich.FromLogContext();
+    });
+
+    var app = builder.Build();
+
+    app.UseHttpsRedirection();
+    app.MapEndpoints(builder.Configuration);
+
+    await app.RunAsync();
 }
 catch (Exception ex)
 {
@@ -24,25 +34,3 @@ finally
 {
     Log.CloseAndFlush();
 }
-
-static IHostBuilder CreateHostBuilder(string[] args) =>
-    Host.CreateDefaultBuilder(args)
-        .ConfigureAppConfiguration((hostContext, config) =>
-        {
-            config.SetBasePath(Directory.GetCurrentDirectory());
-            config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-            config.AddJsonFile($"appsettings.{hostContext.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true);
-            config.AddCommandLine(args);
-        })
-        .ConfigureServices((hostContext, services) =>
-        {
-            services.AddInfrastructure(hostContext.Configuration);
-            services.AddHostedService<ChatBackgroundService>();
-        })
-        .UseSerilog((hostContext, provider, loggerConfiguration) =>
-        {
-            loggerConfiguration
-                .ReadFrom.Configuration(hostContext.Configuration)
-                .ReadFrom.Services(provider)
-                .Enrich.FromLogContext();
-        });
