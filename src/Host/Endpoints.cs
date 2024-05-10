@@ -11,10 +11,10 @@ public static class Endpoints
         app.MapGet("/", () =>
         {
             // Return HTML with hello world
-            return Results.Text($"<a href='https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={clientId}&redirect_uri=http%3A%2F%2Flocalhost%3A5000%2Fcallback&scope=user%3Abot%20channel%3Abot%20chat%3Aedit%20chat%3Aread%20whispers%3Aread'>Login</a>", "text/html");
+            return Results.Text($"<a href='https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={clientId}&redirect_uri=http%3A%2F%2Flocalhost%3A5000%2Fcallback&scope=user%3Abot%20channel%3Abot%20chat%3Aedit%20chat%3Aread%20whispers%3Aread%20clips%3Aedit'>Login</a>", "text/html");
         });
 
-        app.MapGet("/callback", async (HttpContext context, IChatService chatService) =>
+        app.MapGet("/callback", async (HttpContext context, IChatService chatService, IClipService clipService) =>
         {
             var authorizationCode = context.Request.Query["code"];
 
@@ -43,6 +43,7 @@ public static class Endpoints
                 return Results.Text("Error", "text/html");
             }
             await chatService.StartAsync(tokenResponse.access_token, context.RequestAborted);
+            clipService.Start(tokenResponse.access_token);
 
             // return redirect
             return Results.Redirect("/");

@@ -1,8 +1,4 @@
-﻿using Application.Infrastructure;
-using Serilog;
-using Host.Endpoints;
-
-Log.Logger = new LoggerConfiguration()
+﻿Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .Enrich.FromLogContext()
     .CreateBootstrapLogger();
@@ -10,6 +6,7 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     var builder = WebApplication.CreateBuilder(args);
+    builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
     builder.Host.UseSerilog((hostContext, provider, loggerConfiguration) =>
     {

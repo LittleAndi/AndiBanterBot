@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using Application.Infrastructure.OpenAI;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using TwitchLib.Client;
 using TwitchLib.Client.Events;
@@ -10,14 +11,16 @@ namespace Application.Infrastructure.Twitch;
 public interface IChatService
 {
     public Task StartAsync(string accessToken, CancellationToken cancellationToken);
+    public Task SendMessage(string channel, string message, CancellationToken cancellationToken = default);
 }
 
-public partial class ChatService(IAIClient aiClient, ILoggerFactory loggerFactory, ILogger<ChatService> logger, ChatOptions options) : IChatService
+public partial class ChatService(IAIClient aiClient, ILoggerFactory loggerFactory, ILogger<ChatService> logger, ChatOptions options, IMediator mediator) : IChatService
 {
     readonly TwitchClient client = new(loggerFactory: loggerFactory);
     private readonly IAIClient aiClient = aiClient;
     private readonly ILogger<ChatService> logger = logger;
     private readonly ChatOptions options = options;
+    private readonly IMediator mediator = mediator;
     private readonly Random random = new((int)DateTime.Now.Ticks);
     private readonly FixedMessageQueue messages = new(5);
 
@@ -70,10 +73,13 @@ public partial class ChatService(IAIClient aiClient, ILoggerFactory loggerFactor
             return;
         }
 
-        // foreach (var joinedChannel in client.JoinedChannels)
-        // {
-        //     logger.LogDebug("Joined channel: {Channel}", joinedChannel.Channel);
-        // }
+        if (e.ChatMessage.Message.Equals("!clip", StringComparison.CurrentCultureIgnoreCase))
+        {
+            // Create a clip
+            CreateClipCommand clipCommand = new(e.ChatMessage.Channel);
+            await mediator.Send(clipCommand);
+            return;
+        }
 
         messages.Enqueue(new HistoryMessage(e.ChatMessage.Channel, e.ChatMessage.Username, e.ChatMessage.Message, DateTime.Now));
         logger.LogTrace("Messages: {Messages}", string.Join(", ", messages));
@@ -156,6 +162,10 @@ public partial class ChatService(IAIClient aiClient, ILoggerFactory loggerFactor
         await client.DisconnectAsync();
     }
 
+    public async Task SendMessage(string channel, string message, CancellationToken cancellationToken = default)
+    {
+        await client.SendMessageAsync(channel, message);
+    }
 }
 
 internal class FixedMessageQueue(int capacity) : Queue<HistoryMessage>
