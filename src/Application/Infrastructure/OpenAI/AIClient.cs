@@ -24,7 +24,7 @@ public class AIClient(OpenAIClientOptions options) : IAIClient
     {
         var chatCompletionsOptions = new ChatCompletionsOptions
         {
-            DeploymentName = "gpt-4-0125-preview",
+            DeploymentName = "gpt-4o",
             ChoiceCount = 1,
             Messages = {
                 new ChatRequestSystemMessage(SystemPrompt),
@@ -41,7 +41,7 @@ public class AIClient(OpenAIClientOptions options) : IAIClient
     {
         var chatCompletionsOptions = new ChatCompletionsOptions
         {
-            DeploymentName = "gpt-4-0125-preview",
+            DeploymentName = "gpt-4o",
             ChoiceCount = 1,
             Messages = {
                 new ChatRequestSystemMessage(SystemPrompt),

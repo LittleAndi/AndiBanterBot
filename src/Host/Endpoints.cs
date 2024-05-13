@@ -5,8 +5,8 @@ public static class Endpoints
 {
     public static WebApplication MapEndpoints(this WebApplication app, IConfiguration configuration)
     {
-        var clientId = configuration["TwitchChat:ClientId"];
-        var clientSecret = configuration["TwitchChat:ClientSecret"];
+        var clientId = configuration["TwitchLib:ClientId"];
+        var clientSecret = configuration["TwitchLib:ClientSecret"];
 
         app.MapGet("/", () =>
         {
