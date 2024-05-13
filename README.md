@@ -10,6 +10,10 @@ be made during streaming at https://www.twitch.tv/littleandi77.
 We now got a basic bot that responds when mentioned, but also randomly responds to messages in chat.
 Also, we're trying out making it aware of some of the chat history, but this seems to require some tuning.
 
+### Auth
+
+Scopes needed `user:bot chat:edit chat:read channel:bot whispers:read clips:edit`
+
 ### Getting Started
 
 To get started with AndiBanterBot Node version, follow these steps:
