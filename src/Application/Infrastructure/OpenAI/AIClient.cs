@@ -1,6 +1,5 @@
 using Application.Common;
-using Azure;
-using Azure.AI.OpenAI;
+using OpenAI.Chat;
 
 namespace Application.Infrastructure.OpenAI;
 
@@ -12,7 +11,7 @@ public interface IAIClient
 
 public class AIClient(OpenAIClientOptions options) : IAIClient
 {
-    private readonly OpenAIClient client = new(options.ApiKey);
+    private readonly ChatClient client = new("gpt-4o", options.ApiKey);
 
     private readonly string SystemPrompt = @"Your primary role on this Twitch channel is to facilitate and enhance the interactions between human users.
             The vast majority of messages in the chat are conversations between users and the streamer.
@@ -22,36 +21,23 @@ public class AIClient(OpenAIClientOptions options) : IAIClient
 
     public async Task<string> GetAwareCompletion(IEnumerable<string> historyMessages)
     {
-        var chatCompletionsOptions = new ChatCompletionsOptions
-        {
-            DeploymentName = "gpt-4o",
-            ChoiceCount = 1,
-            Messages = {
-                new ChatRequestSystemMessage(SystemPrompt),
-                new ChatRequestUserMessage(historyMessages.Select(msg => new ChatMessageTextContentItem(msg)))
-            }
-        };
+        List<ChatMessage> chatMessages = [new SystemChatMessage(SystemPrompt)];
+        chatMessages.AddRange(historyMessages.Select(msg => new UserChatMessage(msg)));
+        ChatCompletion chatCompletion = await client.CompleteChatAsync([.. chatMessages]);
 
-        Response<ChatCompletions> response = await client.GetChatCompletionsAsync(chatCompletionsOptions);
-        ChatResponseMessage chatResponseMessage = response.Value.Choices[0].Message;
-        return chatResponseMessage.Content;
+        return chatCompletion.Content[0].Text;
     }
 
     public async Task<string> GetCompletion(string prompt)
     {
-        var chatCompletionsOptions = new ChatCompletionsOptions
-        {
-            DeploymentName = "gpt-4o",
-            ChoiceCount = 1,
-            Messages = {
-                new ChatRequestSystemMessage(SystemPrompt),
-                new ChatRequestUserMessage(prompt)
-            }
-        };
+        ChatCompletion chatCompletion = await client.CompleteChatAsync(
+            [
+                new SystemChatMessage(SystemPrompt),
+                new UserChatMessage(prompt),
+            ]
+        );
 
-        Response<ChatCompletions> response = await client.GetChatCompletionsAsync(chatCompletionsOptions);
-        ChatResponseMessage chatResponseMessage = response.Value.Choices[0].Message;
-        return chatResponseMessage.Content;
+        return chatCompletion.Content[0].Text;
     }
 }
 
