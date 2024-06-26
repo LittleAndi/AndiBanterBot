@@ -11,6 +11,7 @@
     <PackageReference Include="OpenAI" Version="2.0.0-beta.5" />
     <PackageReference Include="TwitchLib.Api" Version="3.10.0-preview-7deef4b" />
     <PackageReference Include="Twitchlib.Client" Version="4.0.0-preview-de39bd056dddc47d2907cb0602a0cf088aafb4b3" />
+    <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.5.0-preview-abba5e7" />
     <PackageReference Include="TwitchLib.PubSub" Version="4.0.0-preview-10721e305d3e0b2ac6c93bb75d44140ce38b1322" />
   </ItemGroup>
 </Project>
