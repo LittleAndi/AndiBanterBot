@@ -19,6 +19,7 @@ public static class DependencyInjection
         services.AddSingleton<IChatService, ChatService>();
         services.AddSingleton<IClipService, ClipService>();
         services.AddSingleton<IMonitorService, MonitorService>();
+        services.AddSingleton<IPubSubService, PubSubService>();
         return services;
     }
 
