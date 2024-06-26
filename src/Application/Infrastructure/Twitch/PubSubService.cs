@@ -47,17 +47,17 @@ public class PubSubService(ILogger<PubSubService> logger, ILogger<TwitchPubSub> 
 
     private void Client_OnChannelPointsRewardRedeemed(object? sender, OnChannelPointsRewardRedeemedArgs e)
     {
-        logger.LogDebug("PubSub_OnChannelPointsRewardRedeemed");
+        logger.LogDebug("PubSub_OnChannelPointsRewardRedeemed: {User}", e.RewardRedeemed.Redemption.User.DisplayName);
     }
 
     private void Client_OnStreamUp(object? sender, OnStreamUpArgs e)
     {
-        logger.LogDebug("PubSub_OnStreamUp");
+        logger.LogDebug("PubSub_OnStreamUp: {ChannelId} {PlayDelay}", e.ChannelId, e.PlayDelay);
     }
 
     private void Client_OnStreamDown(object? sender, OnStreamDownArgs e)
     {
-        logger.LogDebug("PubSub_OnStreamDown");
+        logger.LogDebug("PubSub_OnStreamDown: {ChannelId}", e.ChannelId);
     }
 
     private void Client_OnListenResponse(object? sender, OnListenResponseArgs e)
