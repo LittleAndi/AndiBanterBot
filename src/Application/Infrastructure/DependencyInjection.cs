@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.AddConfigurationOptions<ChatOptions>(configuration, out _);
         services.AddSingleton<IChatService, ChatService>();
         services.AddSingleton<IClipService, ClipService>();
+        services.AddSingleton<IMonitorService, MonitorService>();
         return services;
     }
 

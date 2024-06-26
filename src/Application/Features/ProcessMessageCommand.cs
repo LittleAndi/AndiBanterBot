@@ -28,6 +28,9 @@ public class ProcessMessageCommandHandler(
         if (!chatService.JoinedChannels.Any(c => c.Channel.Equals(request.ChatMessage.Channel, StringComparison.CurrentCultureIgnoreCase)))
         {
             logger.LogWarning("Bot is not connected to channel {Channel}", request.ChatMessage.Channel);
+
+            // Try to join the channel
+            await chatService.JoinChannel(request.ChatMessage.Channel, cancellationToken);
             return;
         }
 

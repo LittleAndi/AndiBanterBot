@@ -71,6 +71,11 @@ public partial class ChatService(ILoggerFactory loggerFactory, ILogger<ChatServi
 
     public async Task SendMessage(string channel, string message, CancellationToken cancellationToken = default)
     {
+        if (!client.IsConnected)
+        {
+            logger.LogWarning("Client is not connected");
+            return;
+        }
         await client.SendMessageAsync(channel, message);
     }
 
