@@ -42,12 +42,12 @@ public class MonitorService(ILogger<MonitorService> logger, ChatOptions options)
     {
         if (sender == null)
         {
-            logger.LogWarning("OnServiceStarted: no LiveStreamMonitorService");
+            logger.LogWarning("Montior_OnServiceStarted: no LiveStreamMonitorService");
             return;
         }
         var liveStreamMonitorService = (LiveStreamMonitorService)sender;
         logger.LogDebug(
-            "OnServiceTick: Tick, ChannelsToMonitor {ChannelsToMonitor}, LiveStreams {Streams}",
+            "Montior_OnServiceTick: Tick, ChannelsToMonitor {ChannelsToMonitor}, LiveStreams {Streams}",
             string.Join(", ", liveStreamMonitorService.ChannelsToMonitor),
             string.Join(", ", liveStreamMonitorService.LiveStreams.Keys)
         );
@@ -55,32 +55,32 @@ public class MonitorService(ILogger<MonitorService> logger, ChatOptions options)
 
     private void Monitor_OnChannelsSet(object? sender, OnChannelsSetArgs e)
     {
-        logger.LogInformation("OnChannelsSet: {Channels}", string.Join(", ", e.Channels));
+        logger.LogInformation("Montior_OnChannelsSet: {Channels}", string.Join(", ", e.Channels));
     }
 
     private void Monitor_OnServiceStarted(object? sender, OnServiceStartedArgs e)
     {
         if (sender == null)
         {
-            logger.LogWarning("OnServiceStarted: no LiveStreamMonitorService");
+            logger.LogWarning("Montior_OnServiceStarted: no LiveStreamMonitorService");
             return;
         }
         var liveStreamMonitorService = (LiveStreamMonitorService)sender;
-        logger.LogInformation("OnServiceStarted: Channels to monitor: {ChannelsToMonitor}", string.Join(", ", liveStreamMonitorService.ChannelsToMonitor));
+        logger.LogInformation("Montior_OnServiceStarted: Channels to monitor: {ChannelsToMonitor}", string.Join(", ", liveStreamMonitorService.ChannelsToMonitor));
     }
 
     private void Monitor_OnStreamUpdate(object? sender, OnStreamUpdateArgs e)
     {
-        logger.LogInformation("Stream update: {Title} ({GameName})", e.Stream.Title, e.Stream.GameName);
+        logger.LogInformation("Montior_Stream update: {Title} ({GameName})", e.Stream.Title, e.Stream.GameName);
     }
 
     private void Monitor_OnStreamOffline(object? sender, OnStreamOfflineArgs e)
     {
-        logger.LogInformation("Stream offline {GameName}", e.Stream.GameName);
+        logger.LogInformation("Montior_Stream offline {GameName}", e.Stream.GameName);
     }
 
     private void Monitor_OnStreamOnline(object? sender, OnStreamOnlineArgs e)
     {
-        logger.LogInformation("Stream online: {Title} ({GameName})", e.Stream.Title, e.Stream.GameName);
+        logger.LogInformation("Montior_Stream online: {Title} ({GameName})", e.Stream.Title, e.Stream.GameName);
     }
 }

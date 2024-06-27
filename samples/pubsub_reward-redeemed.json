@@ -1,0 +1,50 @@
+{
+  "type": "reward-redeemed",
+  "data": {
+    "timestamp": "2024-06-27T22:47:26.432811553Z",
+    "redemption": {
+      "id": "a2a43df8-8454-4348-b8e9-17f77eb3d5a9",
+      "user": {
+        "id": "165699060",
+        "login": "littleandi77",
+        "display_name": "LittleAndi77"
+      },
+      "channel_id": "165699060",
+      "redeemed_at": "2024-06-27T22:47:26.432811553Z",
+      "reward": {
+        "id": "26122a56-985e-4d7f-b384-8b79a674ba68",
+        "channel_id": "165699060",
+        "title": "Test reward",
+        "prompt": "Testing out the custom rewards",
+        "cost": 1,
+        "is_user_input_required": false,
+        "is_sub_only": false,
+        "image": null,
+        "default_image": {
+          "url_1x": "https://static-cdn.jtvnw.net/custom-reward-images/default-1.png",
+          "url_2x": "https://static-cdn.jtvnw.net/custom-reward-images/default-2.png",
+          "url_4x": "https://static-cdn.jtvnw.net/custom-reward-images/default-4.png"
+        },
+        "background_color": "#7AA7FF",
+        "is_enabled": true,
+        "is_paused": false,
+        "is_in_stock": true,
+        "max_per_stream": { "is_enabled": false, "max_per_stream": 0 },
+        "should_redemptions_skip_request_queue": false,
+        "template_id": null,
+        "updated_for_indicator_at": "2024-06-27T22:47:13.50166161Z",
+        "max_per_user_per_stream": {
+          "is_enabled": false,
+          "max_per_user_per_stream": 0
+        },
+        "global_cooldown": {
+          "is_enabled": false,
+          "global_cooldown_seconds": 0
+        },
+        "redemptions_redeemed_current_stream": null,
+        "cooldown_expires_at": null
+      },
+      "status": "UNFULFILLED"
+    }
+  }
+}
