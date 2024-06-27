@@ -20,23 +20,42 @@ public class PubSubService(ILogger<PubSubService> logger, ILogger<TwitchPubSub> 
         this.authToken = authToken;
 
         client = new TwitchPubSub(twitchPubSubLogger);
-        client.OnPubSubServiceConnected += Client_OnPubSubServiceConnected;
         client.OnListenResponse += Client_OnListenResponse;
-        client.OnStreamUp += Client_OnStreamUp;
-        client.OnStreamDown += Client_OnStreamDown;
-        client.OnChannelPointsRewardRedeemed += Client_OnChannelPointsRewardRedeemed;
+        client.OnPubSubServiceConnected += Client_OnPubSubServiceConnected;
+        client.OnPubSubServiceClosed += Client_OnPubSubServiceClosed;
         client.OnPubSubServiceError += Client_OnPubSubServiceError;
-        client.OnViewCount += Client_OnViewCount;
 
-        client.ListenToVideoPlayback("165699060");
-        //client.ListenToChannelPoints("165699060");
+        var channelId = "165699060";
+        ListenToVideoPlayback(channelId);
+        ListenToRewards(channelId);
 
         client.Connect();
+    }
+
+    private void ListenToVideoPlayback(string channelId)
+    {
+        client!.OnStreamUp += Client_OnStreamUp;
+        client!.OnStreamDown += Client_OnStreamDown;
+        client!.OnViewCount += Client_OnViewCount;
+        client!.OnCommercial += Client_OnCommercial;
+        client!.ListenToVideoPlayback(channelId);
+    }
+
+    private void ListenToRewards(string channelId)
+    {
+        client!.ListenToChannelPoints(channelId);
+        client!.OnChannelPointsRewardRedeemed += Client_OnChannelPointsRewardRedeemed;
+    }
+
+    private void Client_OnPubSubServiceClosed(object? sender, EventArgs e)
+    {
+        logger.LogDebug("PubSub_OnPubSubServiceClosed");
     }
 
     private void Client_OnPubSubServiceConnected(object? sender, EventArgs e)
     {
         logger.LogDebug("PubSub_OnPubSubServiceConnected");
+        client!.ListenToChannelPoints("165699060");
         client!.SendTopics(authToken);
     }
 
@@ -48,6 +67,11 @@ public class PubSubService(ILogger<PubSubService> logger, ILogger<TwitchPubSub> 
     private void Client_OnChannelPointsRewardRedeemed(object? sender, OnChannelPointsRewardRedeemedArgs e)
     {
         logger.LogDebug("PubSub_OnChannelPointsRewardRedeemed: {User}", e.RewardRedeemed.Redemption.User.DisplayName);
+    }
+
+    private void Client_OnCommercial(object? sender, OnCommercialArgs e)
+    {
+        logger.LogDebug("PubSub_OnCommercial: {Length} seconds", e.Length);
     }
 
     private void Client_OnStreamUp(object? sender, OnStreamUpArgs e)
