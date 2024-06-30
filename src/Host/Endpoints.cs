@@ -1,20 +1,20 @@
-using Application.Infrastructure.Twitch;
-
 namespace Host.Endpoints;
+
 public static class Endpoints
 {
     public static WebApplication MapEndpoints(this WebApplication app, IConfiguration configuration)
     {
         var clientId = configuration["TwitchLib:ClientId"];
         var clientSecret = configuration["TwitchLib:ClientSecret"];
+        var scopes = Endpoints.BuildScopes(configuration!.GetSection("TwitchLib:Scopes")!.Get<string[]>()!);
 
         app.MapGet("/", () =>
         {
             // Return HTML with hello world
             return Results.Text($@"
                 <body bgcolor='#111111'>
-                    <a href='https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={clientId}&redirect_uri=http%3A%2F%2Flocalhost%3A5000%2Fcallback&scope=user%3Abot%20channel%3Abot%20chat%3Aedit%20chat%3Aread%20whispers%3Aread%20clips%3Aedit%20bits%3Aread%20channel%3Aread%3Aredemptions%20channel%3Amanage%3Aredemptions%20channel%3Amanage%3Apredictions%20channel%3Aread%3Asubscriptions'>Authorize Bot with bot account</a>
-                    <a href='https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={clientId}&redirect_uri=http%3A%2F%2Flocalhost%3A5000%2Fpubsubcallback&scope=user%3Abot%20channel%3Abot%20chat%3Aedit%20chat%3Aread%20whispers%3Aread%20clips%3Aedit%20bits%3Aread%20channel%3Aread%3Aredemptions%20channel%3Amanage%3Aredemptions%20channel%3Amanage%3Apredictions%20channel%3Aread%3Asubscriptions'>Authorize Bot with stream account</a>
+                    <a href='https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={clientId}&redirect_uri=http%3A%2F%2Flocalhost%3A5000%2Fcallback&scope={scopes}'>Authorize Bot with bot account</a>
+                    <a href='https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={clientId}&redirect_uri=http%3A%2F%2Flocalhost%3A5000%2Fpubsubcallback&scope={scopes}'>Authorize Bot with stream account</a>
                 </body>",
                 "text/html"
             );
@@ -58,14 +58,14 @@ public static class Endpoints
 
             monitorService.Start(tokenResponse.access_token);
 
-
             // return redirect
             return Results.Redirect("/");
         });
 
         app.MapGet("/pubsubcallback", (
             HttpContext context,
-            IPubSubService pubSubService
+            IPubSubService pubSubService,
+            IWebsocketService websocketService
         ) =>
         {
             var authorizationCode = context.Request.Query["code"];
@@ -96,11 +96,18 @@ public static class Endpoints
             }
 
             pubSubService.Start(tokenResponse.access_token);
+            websocketService.StartAsync(tokenResponse.access_token);
 
             return Results.Redirect("/");
         });
 
         return app;
+    }
+
+    private static string BuildScopes(string[] scopes)
+    {
+        // Url encode the scopes string
+        return HttpUtility.UrlEncode(string.Join(" ", scopes));
     }
 }
 
