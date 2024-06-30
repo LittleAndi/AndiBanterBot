@@ -1,3 +1,5 @@
+using System.Web;
+
 namespace Host.Endpoints;
 
 public static class Endpoints
