@@ -1,6 +1,3 @@
-using Application.Infrastructure.Twitch;
-using MediatR;
-
 namespace Application.Features;
 
 public record SendMessageNotification(string Channel, string Message) : INotification;

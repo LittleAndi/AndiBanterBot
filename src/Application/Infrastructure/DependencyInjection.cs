@@ -1,9 +1,3 @@
-using Application.Common;
-using Application.Infrastructure.OpenAI;
-using Application.Infrastructure.Twitch;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-
 namespace Application.Infrastructure;
 public static class DependencyInjection
 {
@@ -20,6 +14,8 @@ public static class DependencyInjection
         services.AddSingleton<IClipService, ClipService>();
         services.AddSingleton<IMonitorService, MonitorService>();
         services.AddSingleton<IPubSubService, PubSubService>();
+        services.AddSingleton<IWebsocketService, WebsocketService>();
+        services.AddTwitchLibEventSubWebsockets();
         return services;
     }
 
