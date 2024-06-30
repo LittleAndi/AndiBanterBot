@@ -85,11 +85,20 @@ public class WebsocketService : IWebsocketService
         return Task.CompletedTask;
     }
 
-    private Task OnChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs args)
+    private async Task OnChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs args)
     {
         var adDurationSeconds = args.Notification.Payload.Event.DurationSeconds;
+        var broadcasterUserId = args.Notification.Payload.Event.BroadcasterUserLogin;
         logger.LogInformation("WebSocket ChannelAdBreakBegin: {DurationSeconds} seconds", adDurationSeconds);
-        return Task.CompletedTask;
+
+        var processInstructionCommand = new ProcessInstructionCommand(
+            $@"Tell the chat an AD started, it will be over in {adDurationSeconds} seconds.
+            Give chat a suggestion what to do in the meantime.
+            Remind the chat that they can use their Prime Sub to sub to the channel to avoid ads.",
+            broadcasterUserId
+        );
+
+        await mediator.Send(processInstructionCommand);
     }
 
     public async Task StartAsync(string accessToken, CancellationToken cancellationToken = default)
