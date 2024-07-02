@@ -41,6 +41,44 @@ public class WebsocketService : IWebsocketService
         this.eventSubWebsocketClient.ChannelVipAdd += OnChannelVipAdd;
         this.eventSubWebsocketClient.ChannelVipRemove += OnChannelVipRemove;
         this.eventSubWebsocketClient.ChannelAdBreakBegin += OnChannelAdBreakBegin;
+        this.eventSubWebsocketClient.ChannelSubscribe += OnChannelSubscribe;
+        this.eventSubWebsocketClient.ChannelSubscriptionMessage += OnChannelSubscriptionMessage;
+    }
+
+
+    // The channel.subscribe subscription type sends a notification when a specified channel receives a subscriber. This does not include resubscribes.
+    private async Task OnChannelSubscribe(object sender, ChannelSubscribeArgs args)
+    {
+        var userName = args.Notification.Payload.Event.BroadcasterUserName;
+        var isGift = args.Notification.Payload.Event.IsGift;
+        var tier = args.Notification.Payload.Event.Tier;
+        var subscriberUserName = args.Notification.Payload.Event.UserName;
+        var broadcasterUserId = args.Notification.Payload.Event.BroadcasterUserLogin;
+
+        logger.LogInformation("Websocket OnChannelSubscribe: {SubscriberUserName} subscribed to {BroadcasterUserName}, tier: {Tier}", subscriberUserName, userName, tier);
+
+        var processInstructionCommand = new ProcessInstructionCommand(
+            $"We got a new subscriber! Send love and thanks to {subscriberUserName}!",
+            broadcasterUserId
+        );
+        await mediator.Send(processInstructionCommand);
+    }
+
+    private async Task OnChannelSubscriptionMessage(object sender, ChannelSubscriptionMessageArgs args)
+    {
+        var userName = args.Notification.Payload.Event.BroadcasterUserName;
+        var cumulativeMonths = args.Notification.Payload.Event.CumulativeMonths;
+        var tier = args.Notification.Payload.Event.Tier;
+        var subscriberUserName = args.Notification.Payload.Event.UserName;
+        var broadcasterUserId = args.Notification.Payload.Event.BroadcasterUserLogin;
+
+        logger.LogInformation("Websocket OnChannelSubscribe: {SubscriberUserName} resubscribed to {BroadcasterUserName}, tier: {Tier}", subscriberUserName, userName, tier);
+
+        var processInstructionCommand = new ProcessInstructionCommand(
+            $"{subscriberUserName} resubscribed! They subscribed for a total of {cumulativeMonths} months! Send love and cheers to {subscriberUserName}!",
+            broadcasterUserId
+        );
+        await mediator.Send(processInstructionCommand);
     }
 
     private Task OnStreamOnline(object sender, StreamOnlineArgs args)
@@ -61,11 +99,15 @@ public class WebsocketService : IWebsocketService
         return Task.CompletedTask;
     }
 
-    private Task OnChannelFollow(object? sender, ChannelFollowArgs e)
+    private async Task OnChannelFollow(object? sender, ChannelFollowArgs e)
     {
-        var eventData = e.Notification.Payload.Event;
-        logger.LogInformation("{UserName} followed {BroadcasterUserName} at {FollowedAt}", eventData.UserName, eventData.BroadcasterUserName, eventData.FollowedAt);
-        return Task.CompletedTask;
+        var newFollower = e.Notification.Payload.Event.UserName;
+        var broadcasterUserId = e.Notification.Payload.Event.BroadcasterUserLogin;
+
+        logger.LogInformation("{UserName} followed {BroadcasterUserName} at {FollowedAt}", newFollower, e.Notification.Payload.Event.BroadcasterUserName, e.Notification.Payload.Event.FollowedAt);
+
+        var processInstructionCommand = new ProcessInstructionCommand($"Welcome {newFollower} as a new follower! Post some hype in chat for the new follower!", broadcasterUserId);
+        await mediator.Send(processInstructionCommand);
     }
 
     private async Task OnChannelVipAdd(object sender, ChannelVipArgs args)
@@ -236,6 +278,33 @@ public class WebsocketService : IWebsocketService
             catch (System.Exception ex)
             {
                 logger.LogError(ex, "stream.online/offline");
+            }
+
+            // channel.subscribe / channel.subscription.message
+            try
+            {
+                var conditions = new Dictionary<string, string>()
+                {
+                    { "broadcaster_user_id", "165699060" }
+                };
+                await twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                    "channel.subscribe",
+                    "1",
+                    conditions,
+                    EventSubTransportMethod.Websocket,
+                    websocketSessionId: eventSubWebsocketClient.SessionId
+                );
+                await twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                    "channel.subscription.message",
+                    "1",
+                    conditions,
+                    EventSubTransportMethod.Websocket,
+                    websocketSessionId: eventSubWebsocketClient.SessionId
+                );
+            }
+            catch (System.Exception ex)
+            {
+                logger.LogError(ex, "channel.subscribe/subscription.message");
             }
         }
     }
