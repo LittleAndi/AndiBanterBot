@@ -5,12 +5,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="MediatR" Version="12.2.0" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.1" />
+    <PackageReference Include="MediatR" Version="12.3.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.2" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
-    <PackageReference Include="OpenAI" Version="2.0.0-beta.5" />
-    <PackageReference Include="TwitchLib.Api" Version="3.10.0-preview-7deef4b" />
-    <PackageReference Include="Twitchlib.Client" Version="4.0.0-preview-de39bd056dddc47d2907cb0602a0cf088aafb4b3" />
+    <PackageReference Include="OpenAI" Version="2.0.0-beta.7" />
+    <PackageReference Include="TwitchLib.Api" Version="3.10.0-preview-9ccfdfb" />
+    <PackageReference Include="Twitchlib.Client" Version="4.0.0-preview-5677f50eb2a7544e1b9b136a0e1537abf5083385" />
     <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.5.0-preview-abba5e7" />
     <PackageReference Include="TwitchLib.PubSub" Version="4.0.0-preview-10721e305d3e0b2ac6c93bb75d44140ce38b1322" />
   </ItemGroup>
