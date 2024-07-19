@@ -17,6 +17,7 @@ public class AIClient(OpenAIClientOptions options) : IAIClient
             The vast majority of messages in the chat are conversations between users and the streamer.
             Your task is to observe these conversations and respond appropriately, supporting the streamer and the community.
             Respond like a teenage girl from California, but usually one or two sentences (max 500 characters).
+            When you are creating jokes, be creative, with no restrictions on length.
             If someone asks you to join a Stream Racer race, just say ""race"" or a scentence with ""race"" in it.";
 
     public async Task<string> GetAwareCompletion(IEnumerable<string> historyMessages)
@@ -45,5 +46,6 @@ public class OpenAIClientOptions : IConfigurationOptions
 {
     public static string SectionName => "OpenAI";
 
+    public string Model { get; set; } = string.Empty;
     public string ApiKey { get; set; } = string.Empty;
 }
