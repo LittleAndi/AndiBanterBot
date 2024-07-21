@@ -136,6 +136,7 @@ public class WebsocketService : IWebsocketService
         var processInstructionCommand = new ProcessInstructionCommand(
             $@"Tell the chat an AD started, it will be over in {adDurationSeconds} seconds.
             Give chat a suggestion what to do in the meantime.
+            If nothing else you can invite them to join our Discord server with this link {options.DiscordJoinLink}
             Remind the chat that they can use their Prime Sub to sub to the channel to avoid ads.",
             broadcasterUserId
         );

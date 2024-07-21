@@ -13,4 +13,5 @@ public class ChatOptions : IConfigurationOptions
     public string[] AcceptWhispersFrom { get; set; } = [];
     public string[] IgnoreChatMessagesFrom { get; set; } = [];
     public double RandomResponseChance { get; set; } = 0.0;
+    public string DiscordJoinLink { get; set; } = string.Empty;
 }
