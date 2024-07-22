@@ -8,10 +8,11 @@ public interface IPubSubService
     public void Start(string authToken);
 }
 
-public class PubSubService(ILogger<PubSubService> logger, ILogger<TwitchPubSub> twitchPubSubLogger) : IPubSubService
+public class PubSubService(ILogger<PubSubService> logger, ILogger<TwitchPubSub> twitchPubSubLogger, IMediator mediator) : IPubSubService
 {
     private readonly ILogger<PubSubService> logger = logger;
     private readonly ILogger<TwitchPubSub> twitchPubSubLogger = twitchPubSubLogger;
+    private readonly IMediator mediator = mediator;
     private static TwitchPubSub? client;
     private string authToken = string.Empty;
 
@@ -67,6 +68,8 @@ public class PubSubService(ILogger<PubSubService> logger, ILogger<TwitchPubSub> 
     private void Client_OnChannelPointsRewardRedeemed(object? sender, OnChannelPointsRewardRedeemedArgs e)
     {
         logger.LogDebug("PubSub_OnChannelPointsRewardRedeemed: {User}", e.RewardRedeemed.Redemption.User.DisplayName);
+        var command = new ProcessRewardRedeemCommand(e.RewardRedeemed.Redemption);
+        mediator.Send(command);
     }
 
     private void Client_OnCommercial(object? sender, OnCommercialArgs e)
