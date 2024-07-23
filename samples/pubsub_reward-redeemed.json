@@ -1,16 +1,16 @@
 {
   "type": "reward-redeemed",
   "data": {
-    "timestamp": "2024-06-27T22:47:26.432811553Z",
+    "timestamp": "2024-07-22T20:26:35.67392792Z",
     "redemption": {
-      "id": "a2a43df8-8454-4348-b8e9-17f77eb3d5a9",
+      "id": "376e8a03-f1ec-411f-8c31-398737264058",
       "user": {
         "id": "165699060",
         "login": "littleandi77",
         "display_name": "LittleAndi77"
       },
       "channel_id": "165699060",
-      "redeemed_at": "2024-06-27T22:47:26.432811553Z",
+      "redeemed_at": "2024-07-22T20:26:35.67392792Z",
       "reward": {
         "id": "26122a56-985e-4d7f-b384-8b79a674ba68",
         "channel_id": "165699060",
@@ -19,13 +19,17 @@
         "cost": 1,
         "is_user_input_required": false,
         "is_sub_only": false,
-        "image": null,
+        "image": {
+          "url_1x": "https://static-cdn.jtvnw.net/custom-reward-images/165699060/26122a56-985e-4d7f-b384-8b79a674ba68/e9bbfff4-b8ec-42e5-acf5-cf0130c8719c/custom-1.png",
+          "url_2x": "https://static-cdn.jtvnw.net/custom-reward-images/165699060/26122a56-985e-4d7f-b384-8b79a674ba68/e9bbfff4-b8ec-42e5-acf5-cf0130c8719c/custom-2.png",
+          "url_4x": "https://static-cdn.jtvnw.net/custom-reward-images/165699060/26122a56-985e-4d7f-b384-8b79a674ba68/e9bbfff4-b8ec-42e5-acf5-cf0130c8719c/custom-4.png"
+        },
         "default_image": {
           "url_1x": "https://static-cdn.jtvnw.net/custom-reward-images/default-1.png",
           "url_2x": "https://static-cdn.jtvnw.net/custom-reward-images/default-2.png",
           "url_4x": "https://static-cdn.jtvnw.net/custom-reward-images/default-4.png"
         },
-        "background_color": "#7AA7FF",
+        "background_color": "#FFFFFF",
         "is_enabled": true,
         "is_paused": false,
         "is_in_stock": true,
