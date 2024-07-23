@@ -15,4 +15,8 @@
     <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.5.0-preview-abba5e7" />
     <PackageReference Include="TwitchLib.PubSub" Version="4.0.0-preview-10721e305d3e0b2ac6c93bb75d44140ce38b1322" />
   </ItemGroup>
+  <ItemGroup Label="Added due to known vulnerabilities">
+    <!-- https://github.com/advisories/GHSA-hh2w-p6rv-4g7w -->
+    <PackageReference Include="System.Text.Json" Version="8.0.4" />
+  </ItemGroup>
 </Project>
