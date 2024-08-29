@@ -19,7 +19,7 @@ public class AudioClient(OpenAIClientOptions options) : IAudioClient
         var client = openAIClient.GetAudioClient(openAIClientOptions.AudioModel);
         var speechGenerationOptions = new SpeechGenerationOptions() { ResponseFormat = GeneratedSpeechFormat.Mp3 };
 
-        var result = await client.GenerateSpeechFromTextAsync(text, GeneratedSpeechVoice.Nova, speechGenerationOptions, cancellationToken);
+        var result = await client.GenerateSpeechAsync(text, GeneratedSpeechVoice.Nova, speechGenerationOptions, cancellationToken);
 
         // Save a copy of the speech to disk
         var filename = $"{DateTime.Now:yyyy-MM-dd-HHmm}_{Guid.NewGuid()}.mp3";
