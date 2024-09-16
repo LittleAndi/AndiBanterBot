@@ -48,6 +48,7 @@ public class OpenAIClientOptions : IConfigurationOptions
 
     public string Model { get; set; } = string.Empty;
     public string ApiKey { get; set; } = string.Empty;
+    public string ModerationModel { get; set; } = string.Empty;
     public string AudioModel { get; set; } = string.Empty;
     public Guid SoundOutDeviceGuid { get; set; } = Guid.Empty;
     public string AudioOutputPath { get; set; } = string.Empty;

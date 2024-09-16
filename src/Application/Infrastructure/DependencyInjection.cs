@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddConfigurationOptions<OpenAIClientOptions>(configuration, out _);
         services.AddSingleton<IAIClient, AIClient>();
         services.AddSingleton<IAudioClient, AudioClient>();
+        services.AddSingleton<IModerationClient, ModerationClient>();
         return services;
     }
 }

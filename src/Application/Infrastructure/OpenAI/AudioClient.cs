@@ -9,13 +9,21 @@ public interface IAudioClient
     Task PlayTTS(string text, CancellationToken cancellationToken = default);
 }
 
-public class AudioClient(OpenAIClientOptions options) : IAudioClient
+public class AudioClient(OpenAIClientOptions options, IModerationClient moderationClient) : IAudioClient
 {
     private readonly OpenAIClientOptions openAIClientOptions = options;
+    private readonly IModerationClient moderationClient = moderationClient;
     private readonly OpenAIClient openAIClient = new(options.ApiKey);
 
     public async Task PlayTTS(string text, CancellationToken cancellationToken = default)
     {
+        // Moderate the input text
+        var classificationResult = await moderationClient.Classify(text, cancellationToken);
+        if (classificationResult.Flagged)
+        {
+            return;
+        }
+
         var client = openAIClient.GetAudioClient(openAIClientOptions.AudioModel);
         var speechGenerationOptions = new SpeechGenerationOptions() { ResponseFormat = GeneratedSpeechFormat.Mp3 };
 

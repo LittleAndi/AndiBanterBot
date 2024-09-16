@@ -5,14 +5,14 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="MediatR" Version="12.4.0" />
+    <PackageReference Include="MediatR" Version="12.4.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.2" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
     <PackageReference Include="NAudio" Version="2.2.1" />
-    <PackageReference Include="OpenAI" Version="2.0.0-beta.10" />
+    <PackageReference Include="OpenAI" Version="2.0.0-beta.11" />
     <PackageReference Include="TwitchLib.Api" Version="3.10.0-preview-92a4359" />
-    <PackageReference Include="Twitchlib.Client" Version="4.0.0-preview-5677f50eb2a7544e1b9b136a0e1537abf5083385" />
-    <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.5.0-preview-abba5e7" />
+    <PackageReference Include="Twitchlib.Client" Version="4.0.0-preview-5ef35d539836f8bcd29bd836a23b9e853020acfa" />
+    <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.5.0-preview-ffc3181" />
     <PackageReference Include="TwitchLib.PubSub" Version="4.0.0-preview-10721e305d3e0b2ac6c93bb75d44140ce38b1322" />
   </ItemGroup>
   <ItemGroup Label="Added due to known vulnerabilities">
