@@ -1,3 +1,4 @@
+using System.Text.Json;
 using TwitchLib.Client.Models;
 
 namespace Application.Features;
@@ -6,16 +7,20 @@ public record ProcessMessageCommand(ChatMessage ChatMessage) : IRequest;
 public class ProcessMessageCommandHandler(
     IChatService chatService,
     IAIClient aiClient,
+    IModerationClient moderationClient,
     IMediator mediator,
     ChatOptions options,
-    ILogger<ProcessMessageCommandHandler> logger
+    ILogger<ProcessMessageCommandHandler> logger,
+    ILoggerFactory loggerFactory
     ) : IRequestHandler<ProcessMessageCommand>
 {
     private readonly IChatService chatService = chatService;
     private readonly IAIClient aiClient = aiClient;
+    private readonly IModerationClient moderationClient = moderationClient;
     private readonly IMediator mediator = mediator;
     private readonly ChatOptions options = options;
     private readonly ILogger<ProcessMessageCommandHandler> logger = logger;
+    private readonly ILogger moderationLogger = loggerFactory.CreateLogger("Moderation");
     private readonly FixedMessageQueue messages = new(5);
     private readonly Random random = new((int)DateTime.Now.Ticks);
     private double RandomResponseChance => options.RandomResponseChance;
@@ -23,6 +28,12 @@ public class ProcessMessageCommandHandler(
     public async Task Handle(ProcessMessageCommand request, CancellationToken cancellationToken)
     {
         logger.LogInformation("{Channel} - {Username}: {Message}", request.ChatMessage.Channel, request.ChatMessage.Username, request.ChatMessage.Message);
+
+        // Check for moderation classification
+        var classificationResult = await moderationClient.Classify(request.ChatMessage.Message, cancellationToken);
+        var classificationResultJson = JsonSerializer.Serialize(classificationResult);
+        // logger.LogInformation("Moderation: {ModerationResult}", classificationResultJson);
+        moderationLogger.LogInformation("ModerationLogger: {ModerationResult}", classificationResultJson);
 
         // Check if the bot is connected to this channel
         if (!chatService.JoinedChannels.Any(c => c.Channel.Equals(request.ChatMessage.Channel, StringComparison.CurrentCultureIgnoreCase)))
