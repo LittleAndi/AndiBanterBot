@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Application.Infrastructure.Pubg;
 using TwitchLib.Client.Models;
 
 namespace Application.Features;
@@ -10,6 +11,7 @@ public class ProcessMessageCommandHandler(
     IModerationClient moderationClient,
     IMediator mediator,
     ChatOptions options,
+    IPubgApiClient pubgApiClient,
     ILogger<ProcessMessageCommandHandler> logger,
     ILoggerFactory loggerFactory
     ) : IRequestHandler<ProcessMessageCommand>
@@ -19,6 +21,7 @@ public class ProcessMessageCommandHandler(
     private readonly IModerationClient moderationClient = moderationClient;
     private readonly IMediator mediator = mediator;
     private readonly ChatOptions options = options;
+    private readonly IPubgApiClient pubgApiClient = pubgApiClient;
     private readonly ILogger<ProcessMessageCommandHandler> logger = logger;
     private readonly ILogger moderationLogger = loggerFactory.CreateLogger("Moderation");
     private readonly FixedMessageQueue messages = new(5);
@@ -50,6 +53,27 @@ public class ProcessMessageCommandHandler(
             // Create a clip
             CreateClipCommand clipCommand = new(request.ChatMessage.Channel);
             await mediator.Send(clipCommand, cancellationToken);
+            return;
+        }
+
+        if (request.ChatMessage.Message.StartsWith("!match", StringComparison.CurrentCultureIgnoreCase))
+        {
+            try
+            {
+                // Find the match stats
+                var matchId = request.ChatMessage.Message[7..].Trim();
+                var match = await pubgApiClient.GetMatch(matchId);
+
+                var response = await aiClient.GetCompletion("Look at this JSON match statistics from a PUBG game. Find who won the game. Also find out how LittleAndi did in the game. " + JsonSerializer.Serialize(match, Infrastructure.Pubg.Models.Converter.Settings));
+
+                await chatService.SendReply(request.ChatMessage.Channel, request.ChatMessage.Id, response, cancellationToken);
+            }
+            catch (System.Exception ex)
+            {
+                logger.LogError(ex.Message);
+            }
+
+
             return;
         }
 
