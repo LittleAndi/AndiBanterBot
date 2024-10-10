@@ -16,7 +16,7 @@ public class ModerationClient(OpenAIClientOptions options) : IModerationClient
     public async Task<ModerationResult> Classify(string message, CancellationToken cancellationToken = default)
     {
         var client = openAIClient.GetModerationClient(openAIClientOptions.ModerationModel);
-        var result = await client.ClassifyTextInputAsync(message, cancellationToken);
+        var result = await client.ClassifyTextAsync(message, cancellationToken);
         return result.Value;
     }
 }
