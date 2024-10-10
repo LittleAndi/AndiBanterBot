@@ -134,45 +134,6 @@ public record GameModeStats
 
 public record GameModeStatusAttributes
 {
-    /*
-    {
-        "assists": 1867,
-        "boosts": 8066,
-        "dBNOs": 3937,
-        "dailyKills": 7,
-        "dailyWins": 0,
-        "damageDealt": 673083.7,
-        "days": 806,
-        "headshotKills": 890,
-        "heals": 10249,
-        "killPoints": 0,
-        "kills": 3839,
-        "longestKill": 679.2736,
-        "longestTimeSurvived": 1925,
-        "losses": 4416,
-        "maxKillStreaks": 5,
-        "mostSurvivalTime": 1925,
-        "rankPoints": 0,
-        "rankPointsTitle": "",
-        "revives": 1659,
-        "rideDistance": 6479606,
-        "roadKills": 46,
-        "roundMostKills": 15,
-        "roundsPlayed": 4638,
-        "suicides": 53,
-        "swimDistance": 10541.237,
-        "teamKills": 15,
-        "timeSurvived": 3611678.5,
-        "top10s": 2037,
-        "vehicleDestroys": 64,
-        "walkDistance": 4398208.5,
-        "weaponsAcquired": 23358,
-        "weeklyKills": 43,
-        "weeklyWins": 1,
-        "winPoints": 0,
-        "wins": 287
-    }
-    */
     public int Assists { get; set; }
     public int Boosts { get; set; }
     public int DbNOs { get; set; }
