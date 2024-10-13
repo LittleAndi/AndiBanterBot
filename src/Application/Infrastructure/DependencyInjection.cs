@@ -8,6 +8,7 @@ public static class DependencyInjection
     {
         services.AddTwitch(configuration);
         services.AddOpenAI(configuration);
+        services.AddPubgOpenAI(configuration);
         services.AddPubg(configuration);
     }
 
@@ -32,6 +33,13 @@ public static class DependencyInjection
         return services;
     }
 
+    private static IServiceCollection AddPubgOpenAI(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddConfigurationOptions<PubgOpenAIClientOptions>(configuration, out _);
+        services.AddSingleton<IPubgAIClient, PubgAIClient>();
+        return services;
+    }
+
     private static IServiceCollection AddPubg(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddConfigurationOptions<PubgClientOptions>(configuration, out var pubgClientOptions);
@@ -44,4 +52,5 @@ public static class DependencyInjection
         services.AddTransient<IPubgApiClient, PubgApiClient>();
         return services;
     }
+
 }

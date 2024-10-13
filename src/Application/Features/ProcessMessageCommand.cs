@@ -8,6 +8,7 @@ public record ProcessMessageCommand(ChatMessage ChatMessage) : IRequest;
 public class ProcessMessageCommandHandler(
     IChatService chatService,
     IAIClient aiClient,
+    IPubgAIClient aiPubgAIClient,
     IModerationClient moderationClient,
     IMediator mediator,
     ChatOptions options,
@@ -18,6 +19,7 @@ public class ProcessMessageCommandHandler(
 {
     private readonly IChatService chatService = chatService;
     private readonly IAIClient aiClient = aiClient;
+    private readonly IPubgAIClient aiPubgAIClient = aiPubgAIClient;
     private readonly IModerationClient moderationClient = moderationClient;
     private readonly IMediator mediator = mediator;
     private readonly ChatOptions options = options;
@@ -61,10 +63,12 @@ public class ProcessMessageCommandHandler(
             try
             {
                 // Find the match stats
-                var matchId = request.ChatMessage.Message[7..].Trim();
-                var match = await pubgApiClient.GetMatch(matchId);
+                var matchId = request.ChatMessage.Message[7..43].Trim();
+                var match = await pubgApiClient.GetMatch(matchId, cancellationToken);
 
-                var response = await aiClient.GetCompletion("Look at this JSON match statistics from a PUBG game. Find who won the game. Also find out how LittleAndi did in the game. " + JsonSerializer.Serialize(match, Infrastructure.Pubg.Models.Converter.Settings));
+                var additionalPrompt = request.ChatMessage.Message[43..].Trim();
+
+                var response = await aiPubgAIClient.GetPubgCompletion(additionalPrompt, match);
 
                 await chatService.SendReply(request.ChatMessage.Channel, request.ChatMessage.Id, response, cancellationToken);
             }
@@ -72,7 +76,6 @@ public class ProcessMessageCommandHandler(
             {
                 logger.LogError(ex.Message);
             }
-
 
             return;
         }
