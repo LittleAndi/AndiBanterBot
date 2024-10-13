@@ -48,6 +48,7 @@ public static class DependencyInjection
             client.BaseAddress = new Uri(pubgClientOptions.BaseAddress);
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", pubgClientOptions.ApiKey);
             client.DefaultRequestHeaders.Add("Accept", "application/vnd.api+json");
+            client.DefaultRequestHeaders.Add("Accept-Encoding", "gzip");
         });
         services.AddTransient<IPubgApiClient, PubgApiClient>();
         return services;

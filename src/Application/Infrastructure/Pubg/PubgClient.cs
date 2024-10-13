@@ -79,7 +79,7 @@ public class PubgApiClient(IHttpClientFactory httpClientFactory, PubgClientOptio
 public record PubgListOfData
 {
     [JsonPropertyName("data")]
-    public List<Data> Data { get; init; } = new();
+    public List<Data> Data { get; init; } = [];
 }
 
 public record Data
