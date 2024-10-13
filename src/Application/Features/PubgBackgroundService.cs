@@ -3,12 +3,12 @@ using Application.Infrastructure.Pubg;
 
 namespace Application.Features;
 
-public class PubgBackgroundService(IPubgApiClient pubgApiClient, IChatService chatService, ChatOptions options, IAIClient aiClient, ILogger<PubgBackgroundService> logger) : BackgroundService
+public class PubgBackgroundService(IPubgApiClient pubgApiClient, IChatService chatService, ChatOptions options, IPubgAIClient pubgAiClient, ILogger<PubgBackgroundService> logger) : BackgroundService
 {
     private readonly IPubgApiClient pubgApiClient = pubgApiClient;
     private readonly IChatService chatService = chatService;
     private readonly ChatOptions options = options;
-    private readonly IAIClient aiClient = aiClient;
+    private readonly IPubgAIClient pubgAiClient = pubgAiClient;
     private readonly ILogger<PubgBackgroundService> logger = logger;
     private HashSet<string> MatchIds = [];
 
@@ -41,17 +41,8 @@ public class PubgBackgroundService(IPubgApiClient pubgApiClient, IChatService ch
                     logger.LogInformation("New match found: {MatchId}", matchData.Id);
 
                     var match = await pubgApiClient.GetMatch(matchData.Id, stoppingToken);
-                    var response = await aiClient.GetCompletion(
-                        @"Look at this JSON match statistics from a PUBG game.
-                        Find who won the game, use the name attribute from the players that won.
-                        Indicate if was a solo, duo or squad game.
-                        Also find out how LittleAndi did in the game. " + JsonSerializer.Serialize(match, Infrastructure.Pubg.Models.Converter.Settings));
-                    await chatService.SendMessage(options.Channel, $"New game found! {response} ({matchData.Id})", stoppingToken);
-
-                    // Process the new match
-                    // await pubgApiClient.GetMatchDetails(matchData.Id, stoppingToken);
-                    // await pubgApiClient.GetMatchPlayerStats(matchData.Id, playerId, stoppingToken);
-                    // await pubgApiClient.GetMatchTelemetry(matchData.Id, stoppingToken);
+                    var response = await pubgAiClient.GetPubgCompletion(@"", match);
+                    await chatService.SendMessage(options.Channel, response, stoppingToken);
                 }
             }
         }
