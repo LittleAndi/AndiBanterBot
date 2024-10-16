@@ -1,4 +1,3 @@
-using TwitchLib.Client.Models;
 
 namespace Application.Features;
 public record ProcessWhisperCommand(WhisperMessage WhisperMessage) : IRequest;

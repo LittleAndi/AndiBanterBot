@@ -1,5 +1,3 @@
-using TwitchLib.PubSub.Models.Responses.Messages.Redemption;
-
 namespace Application.Features;
 
 public record ProcessRewardRedeemCommand(Redemption Redemption) : IRequest;
@@ -16,7 +14,7 @@ public class ProcessRewardRedeemHandler(IAudioClient audioClient, IChatService c
         {
             //await chatService.SendMessage(request.Reward.ChannelId, request.Reward.Prompt, cancellationToken);
             var userInput = request.Redemption.UserInput.Replace("little2926", "");
-            await audioClient.PlayTTS(userInput);
+            await audioClient.PlayTTS(userInput, GeneratedSpeechVoice.Nova, cancellationToken);
         }
     }
 }

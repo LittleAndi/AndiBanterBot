@@ -1,5 +1,4 @@
 using System.Net.Http.Headers;
-using Application.Infrastructure.Pubg;
 
 namespace Application.Infrastructure;
 public static class DependencyInjection
@@ -26,9 +25,9 @@ public static class DependencyInjection
 
     private static IServiceCollection AddOpenAI(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddConfigurationOptions<OpenAIClientOptions>(configuration, out _);
+        services.AddConfigurationOptions<OpenAI.OpenAIClientOptions>(configuration, out _);
         services.AddSingleton<IAIClient, AIClient>();
-        services.AddSingleton<IAudioClient, AudioClient>();
+        services.AddSingleton<IAudioClient, OpenAI.AudioClient>();
         services.AddSingleton<IModerationClient, ModerationClient>();
         return services;
     }
