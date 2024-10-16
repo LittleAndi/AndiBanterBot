@@ -49,7 +49,8 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", pubgClientOptions.ApiKey);
             client.DefaultRequestHeaders.Add("Accept", "application/vnd.api+json");
             client.DefaultRequestHeaders.Add("Accept-Encoding", "gzip");
-        });
+
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler() { AutomaticDecompression = System.Net.DecompressionMethods.GZip });
         services.AddTransient<IPubgApiClient, PubgApiClient>();
         return services;
     }
