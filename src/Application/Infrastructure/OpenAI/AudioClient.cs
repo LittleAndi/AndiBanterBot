@@ -1,12 +1,10 @@
 using NAudio.Wave;
-using OpenAI;
-using OpenAI.Audio;
 
 namespace Application.Infrastructure.OpenAI;
 
 public interface IAudioClient
 {
-    Task PlayTTS(string text, CancellationToken cancellationToken = default);
+    Task PlayTTS(string text, GeneratedSpeechVoice generatedSpeechVoice, CancellationToken cancellationToken = default);
 }
 
 public class AudioClient(OpenAIClientOptions options, IModerationClient moderationClient) : IAudioClient
@@ -15,7 +13,7 @@ public class AudioClient(OpenAIClientOptions options, IModerationClient moderati
     private readonly IModerationClient moderationClient = moderationClient;
     private readonly OpenAIClient openAIClient = new(options.ApiKey);
 
-    public async Task PlayTTS(string text, CancellationToken cancellationToken = default)
+    public async Task PlayTTS(string text, GeneratedSpeechVoice generatedSpeechVoice, CancellationToken cancellationToken = default)
     {
         // Moderate the input text
         var classificationResult = await moderationClient.Classify(text, cancellationToken);
@@ -27,7 +25,7 @@ public class AudioClient(OpenAIClientOptions options, IModerationClient moderati
         var client = openAIClient.GetAudioClient(openAIClientOptions.AudioModel);
         var speechGenerationOptions = new SpeechGenerationOptions() { ResponseFormat = GeneratedSpeechFormat.Mp3 };
 
-        var result = await client.GenerateSpeechAsync(text, GeneratedSpeechVoice.Nova, speechGenerationOptions, cancellationToken);
+        var result = await client.GenerateSpeechAsync(text, generatedSpeechVoice, speechGenerationOptions, cancellationToken);
 
         // Save a copy of the speech to disk
         var filename = $"{DateTime.Now:yyyy-MM-dd-HHmm}_{Guid.NewGuid()}.mp3";

@@ -1,20 +1,20 @@
-using System.Text.Json;
-using Application.Infrastructure.Pubg;
-
 namespace Application.Features;
 
-public class PubgBackgroundService(IPubgApiClient pubgApiClient, IChatService chatService, ChatOptions options, IPubgAIClient pubgAiClient, ILogger<PubgBackgroundService> logger) : BackgroundService
+public class PubgBackgroundService(IPubgApiClient pubgApiClient, IChatService chatService, ChatOptions options, IPubgAIClient pubgAiClient, IAudioClient audioClient, ILogger<PubgBackgroundService> logger) : BackgroundService
 {
     private readonly IPubgApiClient pubgApiClient = pubgApiClient;
     private readonly IChatService chatService = chatService;
     private readonly ChatOptions options = options;
     private readonly IPubgAIClient pubgAiClient = pubgAiClient;
+    private readonly IAudioClient audioClient = audioClient;
     private readonly ILogger<PubgBackgroundService> logger = logger;
     private HashSet<string> MatchIds = [];
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var playerId = await pubgApiClient.FindPlayerId("LittleAndi", stoppingToken);
+        if (string.IsNullOrWhiteSpace(playerId)) return;
+
         logger.LogDebug("PlayerId: {PlayerId}", playerId);
 
         // Get player info and check for new matches
@@ -43,6 +43,9 @@ public class PubgBackgroundService(IPubgApiClient pubgApiClient, IChatService ch
                     var match = await pubgApiClient.GetMatch(matchData.Id, stoppingToken);
                     var response = await pubgAiClient.GetPubgCompletion(@"", match);
                     await chatService.SendMessage(options.Channel, response, stoppingToken);
+
+                    // Play audio
+                    await audioClient.PlayTTS(response, GeneratedSpeechVoice.Echo, stoppingToken);
                 }
             }
         }

@@ -1,5 +1,5 @@
-using System.Text.Json;
 using OpenAI.Chat;
+using ChatMessage = OpenAI.Chat.ChatMessage;
 
 namespace Application.Infrastructure.OpenAI;
 
