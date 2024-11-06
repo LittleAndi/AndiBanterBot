@@ -23,6 +23,7 @@ public class PubgAIClient(PubgOpenAIClientOptions options) : IPubgAIClient
             Keep your reponse under 450 chars at all costs.
             You may use gamers lingo and shorten common words to keep response short.
             Replace words with emojis where possible.
+            If overall outcome is below average, use shorter summary, focus on getting spirits back to high.
     ";
 
     public async Task<string> GetPubgCompletion(string prompt, Pubg.Models.Match match)
