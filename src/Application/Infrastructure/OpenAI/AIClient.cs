@@ -9,20 +9,14 @@ public interface IAIClient
     Task<string> GetAwareCompletion(IEnumerable<string> historyMessages);
 }
 
-public class AIClient(OpenAIClientOptions options) : IAIClient
+public class AIClient(IOptionsMonitor<OpenAIClientOptions> optionsMonitor) : IAIClient
 {
-    private readonly ChatClient client = new(options.Model, options.ApiKey);
-
-    private readonly string GeneralSystemPrompt = @"Your primary role on this Twitch channel is to facilitate and enhance the interactions between human users.
-            The vast majority of messages in the chat are conversations between users and the streamer.
-            Your task is to observe these conversations and respond appropriately, supporting the streamer and the community.
-            Respond like a teenage girl from California, but usually one or two sentences (max 500 characters).
-            When you are creating jokes, be creative, with no restrictions on length.
-            If someone asks you to join a Stream Racer race, just say ""race"" or a sentence with ""race"" in it.";
+    private readonly ChatClient client = new(optionsMonitor.CurrentValue.Model, optionsMonitor.CurrentValue.ApiKey);
 
     public async Task<string> GetAwareCompletion(IEnumerable<string> historyMessages)
     {
-        List<ChatMessage> chatMessages = [new SystemChatMessage(GeneralSystemPrompt)];
+        var options = optionsMonitor.CurrentValue;
+        List<ChatMessage> chatMessages = [new SystemChatMessage(options.GeneralSystemPrompt)];
         chatMessages.AddRange(historyMessages.Select(msg => new UserChatMessage(msg)));
         ChatCompletion chatCompletion = await client.CompleteChatAsync([.. chatMessages]);
 
@@ -31,9 +25,10 @@ public class AIClient(OpenAIClientOptions options) : IAIClient
 
     public async Task<string> GetCompletion(string prompt)
     {
+        var options = optionsMonitor.CurrentValue;
         ChatCompletion chatCompletion = await client.CompleteChatAsync(
             [
-                new SystemChatMessage(GeneralSystemPrompt),
+                new SystemChatMessage(options.GeneralSystemPrompt),
                 new UserChatMessage(prompt),
             ]
         );
@@ -52,4 +47,5 @@ public class OpenAIClientOptions : IConfigurationOptions
     public string AudioModel { get; set; } = string.Empty;
     public Guid SoundOutDeviceGuid { get; set; } = Guid.Empty;
     public string AudioOutputPath { get; set; } = string.Empty;
+    public string GeneralSystemPrompt { get; set; } = string.Empty;
 }

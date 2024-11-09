@@ -10,9 +10,42 @@ be made during streaming at https://www.twitch.tv/littleandi77.
 We now got a basic bot that responds when mentioned, but also randomly responds to messages in chat.
 Also, we're trying out making it aware of some of the chat history, but this seems to require some tuning.
 
+## Config
+
+### Prompts
+
+Currently supporting a separate `appsettings.prompts.json` that can be (but not need to be) used to configure the system prompts.
+The Pubg AI will besides the system prompt be fed with the json payload from the /matches endpoint in the PUBG API.
+
+```json
+{
+  "OpenAI": {
+    "GeneralSystemPrompt": "Be kind"
+  },
+  "PubgOpenAI": {
+    "PubgGameSystemPrompt": ""
+  }
+}
+```
+
 ## Auth
 
-Scopes needed `user:bot chat:edit chat:read channel:bot whispers:read clips:edit`
+Scopes needed (configured in appsettings):
+
+- "bits:read",
+- "channel:bot",
+- "channel:manage:predictions",
+- "channel:manage:redemptions",
+- "channel:read:ads",
+- "channel:read:redemptions",
+- "channel:read:subscriptions",
+- "channel:read:vips",
+- "chat:edit",
+- "chat:read",
+- "clips:edit",
+- "moderator:read:followers",
+- "user:bot",
+- "whispers:read"
 
 ## Getting Started
 

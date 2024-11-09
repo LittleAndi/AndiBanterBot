@@ -1,6 +1,3 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-
 namespace Application.Common;
 
 public interface IConfigurationOptions
@@ -10,10 +7,31 @@ public interface IConfigurationOptions
 
 public static class ConfigurationOptionsExtensions
 {
-    public static IServiceCollection AddConfigurationOptions<T>(this IServiceCollection services, IConfiguration configuration, out T options) where T : class, IConfigurationOptions
+    public static IServiceCollection AddConfigurationOptions<T>(this IServiceCollection services, IConfiguration configuration) where T : class, IConfigurationOptions, new()
     {
-        options = configuration.GetRequiredSection<T>(T.SectionName);
-        services.AddSingleton(options.GetType(), options);
+        // Bind options and add it to the DI container as Singleton
+        var section = configuration.GetSection(T.SectionName);
+        services.Configure<T>(section);
+
+        // Add IOptionsMonitor to track changes
+        services.AddSingleton(sp =>
+        {
+            var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<T>>();
+            var currentOptions = optionsMonitor.CurrentValue;
+
+            // Subscribe to changes
+            optionsMonitor.OnChange(updatedOptions =>
+            {
+                // Update any other logic if needed when options change
+                Console.WriteLine($"Options of type {typeof(T).Name} have been updated.");
+
+                // Here you could also call a custom method on the options instance if needed
+                // e.g., currentOptions.OnConfigurationChanged(updatedOptions);
+            });
+
+            return currentOptions;
+        });
+
         return services;
     }
 
