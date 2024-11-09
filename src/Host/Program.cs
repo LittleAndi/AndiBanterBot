@@ -6,6 +6,7 @@
 try
 {
     var builder = WebApplication.CreateBuilder(args);
+    builder.Configuration.AddJsonFile("appsettings.prompts.json", optional: true, reloadOnChange: true);
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
     builder.Host.UseSerilog((hostContext, provider, loggerConfiguration) =>

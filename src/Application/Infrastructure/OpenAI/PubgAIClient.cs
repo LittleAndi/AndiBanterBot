@@ -8,29 +8,16 @@ public interface IPubgAIClient
     Task<string> GetPubgCompletion(string prompt, Pubg.Models.Match match);
 }
 
-public class PubgAIClient(PubgOpenAIClientOptions options) : IPubgAIClient
+public class PubgAIClient(IOptionsMonitor<PubgOpenAIClientOptions> optionsMonitor) : IPubgAIClient
 {
-    private readonly ChatClient client = new(options.Model, options.ApiKey);
-
-    private readonly string PubgGameSystemPrompt = @"
-            Analyze LittleAndi performance. Account for the game type; solo, duo or squad.
-            If it is a solo game, analyze LittleAndi's performance and highlight any unique aspects of the gameplay.
-            If it is a squad or duo game, also analyze LittleAndi's team performance and highlight LittleAndi's contributions.
-            LittleAndi's team is the ones that is in the same roster as LittleAndi.
-            The 'relationships' and 'rosters' tells you about the groups of players playing together.
-            Each 'roster' got 'participants' which are the members of the groups (can also be solos).
-            If LittleAndi is not in the match as a participant, just create a general analysis of the game.
-            Keep your reponse under 450 chars at all costs.
-            You may use gamers lingo and shorten common words to keep response short.
-            Replace words with emojis where possible.
-            If overall outcome is below average, use shorter summary, focus on getting spirits back to high.
-    ";
+    private readonly ChatClient client = new(optionsMonitor.CurrentValue.Model, optionsMonitor.CurrentValue.ApiKey);
 
     public async Task<string> GetPubgCompletion(string prompt, Pubg.Models.Match match)
     {
+        var options = optionsMonitor.CurrentValue;
         ChatCompletion chatCompletion = await client.CompleteChatAsync(
             [
-                new SystemChatMessage(PubgGameSystemPrompt),
+                new SystemChatMessage(options.PubgGameSystemPrompt),
                 new UserChatMessage(
                     ChatMessageContentPart.CreateTextPart(prompt),
                     ChatMessageContentPart.CreateTextPart(JsonSerializer.Serialize(match, Infrastructure.Pubg.Models.Converter.Settings))
@@ -48,4 +35,5 @@ public class PubgOpenAIClientOptions : IConfigurationOptions
 
     public string Model { get; set; } = string.Empty;
     public string ApiKey { get; set; } = string.Empty;
+    public string PubgGameSystemPrompt { get; set; } = string.Empty;
 }
