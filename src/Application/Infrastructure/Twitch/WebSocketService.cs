@@ -333,4 +333,22 @@ public class WebsocketService : IWebsocketService
         logger.LogError(e.Exception, "Websocket {SessionId} - Error occurred!", eventSubWebsocketClient.SessionId);
         return Task.CompletedTask;
     }
+
+    private async Task SubscribeToEvent(string eventType, string version, Dictionary<string, string> conditions)
+    {
+        try
+        {
+            await twitchApi.Helix.EventSub.CreateEventSubSubscriptionAsync(
+                eventType,
+                version,
+                conditions,
+                EventSubTransportMethod.Websocket,
+                websocketSessionId: eventSubWebsocketClient.SessionId
+            );
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{EventType} subscription failed", eventType);
+        }
+    }
 }
