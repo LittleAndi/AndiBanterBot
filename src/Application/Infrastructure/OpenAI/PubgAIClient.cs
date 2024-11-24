@@ -8,9 +8,12 @@ public interface IPubgAIClient
     Task<string> GetPubgCompletion(string prompt, Pubg.Models.Match match);
 }
 
-public class PubgAIClient(IOptionsMonitor<PubgOpenAIClientOptions> optionsMonitor) : IPubgAIClient
+public class PubgAIClient(IOptionsMonitor<PubgOpenAIClientOptions> optionsMonitor, ILogger<PubgAIClient> logger) : IPubgAIClient
 {
     private readonly ChatClient client = new(optionsMonitor.CurrentValue.Model, optionsMonitor.CurrentValue.ApiKey);
+    private readonly ILogger<PubgAIClient> logger = logger;
+    private long totalInputTokenCount = 0;
+    private long totalOutputTokenCount = 0;
 
     public async Task<string> GetPubgCompletion(string prompt, Pubg.Models.Match match)
     {
@@ -24,6 +27,14 @@ public class PubgAIClient(IOptionsMonitor<PubgOpenAIClientOptions> optionsMonito
                 ),
             ]
         );
+
+        // Logging for the usage from this call
+        logger.LogInformation("Usage: {@Usage}", chatCompletion.Usage);
+
+        // Log aggregated counts
+        totalInputTokenCount += chatCompletion.Usage.InputTokenCount;
+        totalOutputTokenCount += chatCompletion.Usage.OutputTokenCount;
+        logger.LogInformation("Total token counts: {TotalInputTokenCount} {TotalOutputTokenCount}", totalInputTokenCount, totalOutputTokenCount);
 
         return new string(chatCompletion.Content[0].Text);
     }
