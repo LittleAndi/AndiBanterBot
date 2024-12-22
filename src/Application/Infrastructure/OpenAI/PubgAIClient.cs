@@ -5,7 +5,7 @@ namespace Application.Infrastructure.OpenAI;
 
 public interface IPubgAIClient
 {
-    Task<string> GetPubgCompletion(string prompt, Pubg.Models.Match match);
+    Task<string> GetPubgCompletion(string prompt, Pubg.Models.Match match, string mainParticipantName);
 }
 
 public class PubgAIClient(IOptionsMonitor<PubgOpenAIClientOptions> optionsMonitor, ILogger<PubgAIClient> logger) : IPubgAIClient
@@ -15,15 +15,17 @@ public class PubgAIClient(IOptionsMonitor<PubgOpenAIClientOptions> optionsMonito
     private long totalInputTokenCount = 0;
     private long totalOutputTokenCount = 0;
 
-    public async Task<string> GetPubgCompletion(string prompt, Pubg.Models.Match match)
+    public async Task<string> GetPubgCompletion(string prompt, Pubg.Models.Match match, string mainParticipantName)
     {
+        var pubgAIMatchModel = PubgAIMatchModel.FromMatch(match, mainParticipantName);
+
         var options = optionsMonitor.CurrentValue;
         ChatCompletion chatCompletion = await client.CompleteChatAsync(
             [
                 new SystemChatMessage(options.PubgGameSystemPrompt),
                 new UserChatMessage(
                     ChatMessageContentPart.CreateTextPart(prompt),
-                    ChatMessageContentPart.CreateTextPart(JsonSerializer.Serialize(match, Infrastructure.Pubg.Models.Converter.Settings))
+                    ChatMessageContentPart.CreateTextPart(JsonSerializer.Serialize(pubgAIMatchModel, Infrastructure.Pubg.Models.Converter.Settings))
                 ),
             ]
         );

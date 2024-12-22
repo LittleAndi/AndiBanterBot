@@ -41,7 +41,7 @@ public class PubgBackgroundService(IPubgApiClient pubgApiClient, IChatService ch
                     logger.LogInformation("New match found: {MatchId}", matchData.Id);
 
                     var match = await pubgApiClient.GetMatch(matchData.Id, stoppingToken);
-                    var response = await pubgAiClient.GetPubgCompletion(@"", match);
+                    var response = await pubgAiClient.GetPubgCompletion(@"", match, "LittleAndi");
                     await chatService.SendMessage(options.Channel, response, stoppingToken);
 
                     // Play audio
