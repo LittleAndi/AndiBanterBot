@@ -1,10 +1,8 @@
-using System.Text.Json;
-
-
 namespace Application.Features;
+
 public record ProcessMessageCommand(ChatMessage ChatMessage, string ThreadId) : IRequest;
 
-public class ProcessMessageCommandHandler(
+public partial class ProcessMessageCommandHandler(
     IChatService chatService,
     IAIClient aiClient,
     IAssistantClient assistantClient,
@@ -30,6 +28,9 @@ public class ProcessMessageCommandHandler(
     private readonly FixedMessageQueue messages = new(5);
     private readonly Random random = new((int)DateTime.Now.Ticks);
     private double RandomResponseChance => options.RandomResponseChance;
+
+    [GeneratedRegex(@"^!match\s([a-f0-9-]+)\s(\S+)\s(.+)", RegexOptions.IgnoreCase)]
+    private static partial Regex MatchRegex();
 
     public async Task Handle(ProcessMessageCommand request, CancellationToken cancellationToken)
     {
@@ -63,15 +64,25 @@ public class ProcessMessageCommandHandler(
         {
             try
             {
-                // Find the match stats
-                var matchId = request.ChatMessage.Message[7..43].Trim();
-                var match = await pubgApiClient.GetMatch(matchId, cancellationToken);
+                if (MatchRegex().IsMatch(request.ChatMessage.Message))
+                {
+                    var regexMatch = MatchRegex().Match(request.ChatMessage.Message);
 
-                var additionalPrompt = request.ChatMessage.Message[43..].Trim();
+                    // Find the match stats
+                    var matchId = regexMatch.Groups[1].Value;
+                    var mainParticipantName = regexMatch.Groups[2].Value;
+                    var match = await pubgApiClient.GetMatch(matchId, cancellationToken);
 
-                var response = await aiPubgAIClient.GetPubgCompletion(additionalPrompt, match);
+                    var additionalPrompt = regexMatch.Groups[3].Value;
 
-                await chatService.SendReply(request.ChatMessage.Channel, request.ChatMessage.Id, response, cancellationToken);
+                    var response = await aiPubgAIClient.GetPubgCompletion(additionalPrompt, match, mainParticipantName);
+
+                    await chatService.SendReply(request.ChatMessage.Channel, request.ChatMessage.Id, response, cancellationToken);
+                }
+                else
+                {
+                    await chatService.SendReply(request.ChatMessage.Channel, request.ChatMessage.Id, "Didn't understand that !match command", cancellationToken);
+                }
             }
             catch (System.Exception ex)
             {
