@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddSingleton<IAIClient, AIClient>();
         services.AddSingleton<IAudioClient, OpenAI.AudioClient>();
         services.AddSingleton<IModerationClient, ModerationClient>();
+        services.AddSingleton<IAssistantClient, OpenAI.AssistantClient>();
         return services;
     }
 

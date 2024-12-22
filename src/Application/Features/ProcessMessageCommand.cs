@@ -1,13 +1,13 @@
 using System.Text.Json;
-using Application.Infrastructure.Pubg;
-using TwitchLib.Client.Models;
+
 
 namespace Application.Features;
-public record ProcessMessageCommand(ChatMessage ChatMessage) : IRequest;
+public record ProcessMessageCommand(ChatMessage ChatMessage, string ThreadId) : IRequest;
 
 public class ProcessMessageCommandHandler(
     IChatService chatService,
     IAIClient aiClient,
+    IAssistantClient assistantClient,
     IPubgAIClient aiPubgAIClient,
     IModerationClient moderationClient,
     IMediator mediator,
@@ -19,6 +19,7 @@ public class ProcessMessageCommandHandler(
 {
     private readonly IChatService chatService = chatService;
     private readonly IAIClient aiClient = aiClient;
+    private readonly IAssistantClient assistantClient = assistantClient;
     private readonly IPubgAIClient aiPubgAIClient = aiPubgAIClient;
     private readonly IModerationClient moderationClient = moderationClient;
     private readonly IMediator mediator = mediator;
@@ -84,6 +85,8 @@ public class ProcessMessageCommandHandler(
         logger.LogTrace("Messages: {Messages}", string.Join(", ", messages));
         logger.LogTrace("Summary: {Summary}", messages.GetExtractiveSummary(request.ChatMessage.Channel));
 
+        await assistantClient.AddMessage(request.ThreadId, request.ChatMessage.Username, string.Empty, request.ChatMessage.Message);
+
         // Ignore messages from some users (like yourself)
         if (
             request.ChatMessage.Username.Equals(options.Username, StringComparison.CurrentCultureIgnoreCase)
@@ -96,10 +99,10 @@ public class ProcessMessageCommandHandler(
         var randomResponseChance = random.NextDouble();
         logger.LogDebug("Random value: {RandomValue}", randomResponseChance);
 
-        if (request.ChatMessage.Message.Contains(options.Username, StringComparison.CurrentCultureIgnoreCase))
+        if (request.ChatMessage.Message.Contains(options.Username, StringComparison.CurrentCultureIgnoreCase) || randomResponseChance > RandomResponseChance)
         {
             // If the message contains the bot's name, use only that message as a prompt
-            string completion = await aiClient.GetCompletion(request.ChatMessage.Message);
+            string completion = await assistantClient.RunAndWait(request.ThreadId);
 
             logger.LogDebug("Completion ({Channel}): {Completion}", request.ChatMessage.Channel, completion);
 
@@ -115,21 +118,6 @@ public class ProcessMessageCommandHandler(
                     throw;
                 }
             }
-        }
-        else if (randomResponseChance > RandomResponseChance)
-        {
-            // If this is a random response, use some of the chat history to generate a response
-            // This also empties the history queue
-
-            // Get the messages into a list
-            var historyMessages = new List<string>();
-            while (messages.TryDequeue(out var message))
-            {
-                historyMessages.Add(message.Message);
-            }
-            string completion = await aiClient.GetAwareCompletion(historyMessages);
-            logger.LogInformation("History aware completion ({Channel}): {Completion}", request.ChatMessage.Channel, completion);
-            await chatService.SendMessage(request.ChatMessage.Channel, completion, cancellationToken);
         }
     }
 }
@@ -196,3 +184,5 @@ internal class FixedMessageQueue(int capacity) : Queue<HistoryMessage>
 }
 
 public record HistoryMessage(string Channel, string Username, string Message, DateTime Timestamp);
+
+#pragma warning restore OPENAI001
