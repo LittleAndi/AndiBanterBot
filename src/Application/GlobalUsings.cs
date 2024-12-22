@@ -10,6 +10,7 @@ global using Microsoft.Extensions.Hosting;
 global using Microsoft.Extensions.Logging;
 global using Microsoft.Extensions.Options;
 global using OpenAI;
+global using OpenAI.Assistants;
 global using OpenAI.Audio;
 global using System.Text.RegularExpressions;
 global using TwitchLib.Client.Models;

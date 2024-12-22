@@ -48,4 +48,5 @@ public class OpenAIClientOptions : IConfigurationOptions
     public Guid SoundOutDeviceGuid { get; set; } = Guid.Empty;
     public string AudioOutputPath { get; set; } = string.Empty;
     public string GeneralSystemPrompt { get; set; } = string.Empty;
+    public string Assistant { get; set; } = string.Empty;
 }

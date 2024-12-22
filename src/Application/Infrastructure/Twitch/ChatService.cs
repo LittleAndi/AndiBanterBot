@@ -4,6 +4,8 @@ using TwitchLib.Client.Models;
 
 namespace Application.Infrastructure.Twitch;
 
+#pragma warning disable OPENAI001
+
 public interface IChatService
 {
     public Task StartAsync(string accessToken, CancellationToken cancellationToken);
@@ -13,12 +15,15 @@ public interface IChatService
     public IReadOnlyList<JoinedChannel> JoinedChannels { get; }
 }
 
-public partial class ChatService(ILoggerFactory loggerFactory, ILogger<ChatService> logger, ChatOptions options, IMediator mediator) : IChatService
+public partial class ChatService(ILoggerFactory loggerFactory, ILogger<ChatService> logger, ChatOptions options, IMediator mediator, IAssistantClient assistantClient) : IChatService
 {
     readonly TwitchClient client = new(loggerFactory: loggerFactory);
     private readonly ILogger<ChatService> logger = logger;
     private readonly ChatOptions options = options;
     private readonly IMediator mediator = mediator;
+    private readonly IAssistantClient assistantClient = assistantClient;
+    private string threadId = string.Empty;
+
 
     private Task Client_OnConnected(object? sender, OnConnectedEventArgs e)
     {
@@ -40,7 +45,7 @@ public partial class ChatService(ILoggerFactory loggerFactory, ILogger<ChatServi
 
     private async Task Client_OnMessageReceived(object? sender, OnMessageReceivedArgs e)
     {
-        var processMessageCommand = new ProcessMessageCommand(e.ChatMessage);
+        var processMessageCommand = new ProcessMessageCommand(e.ChatMessage, threadId);
         await mediator.Send(processMessageCommand);
     }
 
@@ -52,6 +57,8 @@ public partial class ChatService(ILoggerFactory loggerFactory, ILogger<ChatServi
 
     public async Task StartAsync(string accessToken, CancellationToken cancellationToken)
     {
+        threadId = await assistantClient.NewThread(new ThreadCreationOptions());
+
         ConnectionCredentials credentials = new(options.Username, accessToken);
         client.Initialize(credentials, options.Channel);
 
@@ -91,3 +98,5 @@ public partial class ChatService(ILoggerFactory loggerFactory, ILogger<ChatServi
 
     public IReadOnlyList<JoinedChannel> JoinedChannels => client.JoinedChannels;
 }
+
+#pragma warning restore OPENAI001

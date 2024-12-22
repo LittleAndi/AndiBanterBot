@@ -10,7 +10,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
     <PackageReference Include="NAudio" Version="2.2.1" />
-    <PackageReference Include="OpenAI" Version="2.1.0-beta.2" />
+    <PackageReference Include="OpenAI" Version="2.1.0" />
     <PackageReference Include="TwitchLib.Api" Version="3.10.0-preview-92a4359" />
     <PackageReference Include="Twitchlib.Client" Version="4.0.0-preview-5ef35d539836f8bcd29bd836a23b9e853020acfa" />
     <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.6.0-preview-dbc970c" />
