@@ -1,4 +1,6 @@
 using System.Net.Http.Headers;
+using Polly;
+using Polly.Extensions.Http;
 
 namespace Application.Infrastructure;
 public static class DependencyInjection
@@ -51,9 +53,18 @@ public static class DependencyInjection
             client.DefaultRequestHeaders.Add("Accept", "application/vnd.api+json");
             client.DefaultRequestHeaders.Add("Accept-Encoding", "gzip");
 
-        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler() { AutomaticDecompression = System.Net.DecompressionMethods.GZip });
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler() { AutomaticDecompression = System.Net.DecompressionMethods.GZip })
+        .SetHandlerLifetime(TimeSpan.FromMinutes(5))
+        .AddPolicyHandler(GetRetryPolicy());
         services.AddTransient<IPubgApiClient, PubgApiClient>();
         return services;
     }
 
+    private static Polly.Retry.AsyncRetryPolicy<HttpResponseMessage> GetRetryPolicy()
+    {
+        return HttpPolicyExtensions
+            .HandleTransientHttpError()
+            .WaitAndRetryAsync(6, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+    }
 }
