@@ -1,8 +1,9 @@
 namespace Application.Features;
 
-public class PubgBackgroundService(IPubgApiClient pubgApiClient, IChatService chatService, ChatOptions options, IPubgAIClient pubgAiClient, IAudioClient audioClient, ILogger<PubgBackgroundService> logger) : BackgroundService
+public class PubgBackgroundService(IPubgApiClient pubgApiClient, IPubgStorageClient pubgStorageClient, IChatService chatService, ChatOptions options, IPubgAIClient pubgAiClient, IAudioClient audioClient, ILogger<PubgBackgroundService> logger) : BackgroundService
 {
     private readonly IPubgApiClient pubgApiClient = pubgApiClient;
+    private readonly IPubgStorageClient pubgStorageClient = pubgStorageClient;
     private readonly IChatService chatService = chatService;
     private readonly ChatOptions options = options;
     private readonly IPubgAIClient pubgAiClient = pubgAiClient;
@@ -24,6 +25,12 @@ public class PubgBackgroundService(IPubgApiClient pubgApiClient, IChatService ch
         // Get all the match ids into MatchIds
         MatchIds = playerInfo.Data.Relationships.Matches.Data.Select(data => data.Id).ToHashSet();
 
+        // Save the current matches
+        foreach (var matchData in playerInfo.Data.Relationships.Matches.Data)
+        {
+            var match = await pubgApiClient.GetMatch(matchData.Id, stoppingToken);
+            await pubgStorageClient.SaveMatch(matchData.Id, match, stoppingToken);
+        }
 
         using PeriodicTimer timer = new(TimeSpan.FromSeconds(10));
         while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
@@ -41,6 +48,7 @@ public class PubgBackgroundService(IPubgApiClient pubgApiClient, IChatService ch
                     logger.LogInformation("New match found: {MatchId}", matchData.Id);
 
                     var match = await pubgApiClient.GetMatch(matchData.Id, stoppingToken);
+                    await pubgStorageClient.SaveMatch(matchData.Id, match, stoppingToken);
                     var response = await pubgAiClient.GetPubgCompletion(@"", match, "LittleAndi");
                     await chatService.SendMessage(options.Channel, response, stoppingToken);
 

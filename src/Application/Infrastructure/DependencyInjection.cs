@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using Microsoft.Extensions.Azure;
 using Polly;
 using Polly.Extensions.Http;
 
@@ -44,10 +45,11 @@ public static class DependencyInjection
 
     private static IServiceCollection AddPubg(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddConfigurationOptions<PubgClientOptions>(configuration);
+        var pubgClientOptionsSection = configuration.GetSection(PubgClientOptions.SectionName);
+        var pubgClientOptions = pubgClientOptionsSection.Get<PubgClientOptions>()!;
+        services.Configure<PubgClientOptions>(pubgClientOptionsSection);
         services.AddHttpClient("pubg", (ServiceProvider, client) =>
         {
-            var pubgClientOptions = ServiceProvider.GetRequiredService<IOptionsMonitor<PubgClientOptions>>().CurrentValue;
             client.BaseAddress = new Uri(pubgClientOptions.BaseAddress);
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", pubgClientOptions.ApiKey);
             client.DefaultRequestHeaders.Add("Accept", "application/vnd.api+json");
@@ -57,6 +59,12 @@ public static class DependencyInjection
         .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler() { AutomaticDecompression = System.Net.DecompressionMethods.GZip })
         .SetHandlerLifetime(TimeSpan.FromMinutes(5))
         .AddPolicyHandler(GetRetryPolicy());
+
+        services.AddAzureClients((builder) =>
+        {
+            builder.AddBlobServiceClient(pubgClientOptions.Storage).WithName("pubgStorage");
+        });
+        services.AddSingleton<IPubgStorageClient, PubgStorageClient>();
         services.AddTransient<IPubgApiClient, PubgApiClient>();
         return services;
     }

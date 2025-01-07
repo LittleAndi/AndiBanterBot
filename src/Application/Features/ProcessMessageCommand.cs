@@ -11,6 +11,7 @@ public partial class ProcessMessageCommandHandler(
     IMediator mediator,
     ChatOptions options,
     IPubgApiClient pubgApiClient,
+    IPubgStorageClient pubgStorageClient,
     ILogger<ProcessMessageCommandHandler> logger,
     ILoggerFactory loggerFactory
     ) : IRequestHandler<ProcessMessageCommand>
@@ -23,6 +24,7 @@ public partial class ProcessMessageCommandHandler(
     private readonly IMediator mediator = mediator;
     private readonly ChatOptions options = options;
     private readonly IPubgApiClient pubgApiClient = pubgApiClient;
+    private readonly IPubgStorageClient pubgStorageClient = pubgStorageClient;
     private readonly ILogger<ProcessMessageCommandHandler> logger = logger;
     private readonly ILogger moderationLogger = loggerFactory.CreateLogger("Moderation");
     private readonly FixedMessageQueue messages = new(5);
@@ -73,6 +75,9 @@ public partial class ProcessMessageCommandHandler(
                     var mainParticipantName = regexMatch.Groups[2].Value;
                     var match = await pubgApiClient.GetMatch(matchId, cancellationToken);
 
+                    // Save the match
+                    await pubgStorageClient.SaveMatch(matchId, match, cancellationToken);
+
                     var additionalPrompt = regexMatch.Groups[3].Value;
 
                     var response = await aiPubgAIClient.GetPubgCompletion(additionalPrompt, match, mainParticipantName);
@@ -86,7 +91,7 @@ public partial class ProcessMessageCommandHandler(
             }
             catch (System.Exception ex)
             {
-                logger.LogError(ex.Message);
+                logger.LogError(ex, "Error when processing !match command");
             }
 
             return;
