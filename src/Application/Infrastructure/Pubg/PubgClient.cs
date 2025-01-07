@@ -12,10 +12,10 @@ public interface IPubgApiClient
     Task<Models.Match> GetMatch(string matchId, CancellationToken cancellationToken = default);
 }
 
-public class PubgApiClient(IHttpClientFactory httpClientFactory, PubgClientOptions pubgClientOptions, ILogger<PubgApiClient> logger) : IPubgApiClient
+public class PubgApiClient(IHttpClientFactory httpClientFactory, IOptions<PubgClientOptions> pubgClientOptions, ILogger<PubgApiClient> logger) : IPubgApiClient
 {
     private readonly HttpClient httpClient = httpClientFactory.CreateClient("pubg");
-    private readonly PubgClientOptions pubgClientOptions = pubgClientOptions;
+    private readonly PubgClientOptions pubgClientOptions = pubgClientOptions.Value;
     private readonly ILogger<PubgApiClient> logger = logger;
 
     public async Task<string> FindPlayerId(string inGameName, CancellationToken cancellationToken = default)
