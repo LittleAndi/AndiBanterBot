@@ -28,7 +28,6 @@ public class PubSubService(ILogger<PubSubService> logger, ILogger<TwitchPubSub> 
 
         var channelId = "165699060";
         ListenToVideoPlayback(channelId);
-        ListenToRewards(channelId);
 
         client.Connect();
     }
@@ -40,12 +39,6 @@ public class PubSubService(ILogger<PubSubService> logger, ILogger<TwitchPubSub> 
         client!.OnViewCount += Client_OnViewCount;
         client!.OnCommercial += Client_OnCommercial;
         client!.ListenToVideoPlayback(channelId);
-    }
-
-    private void ListenToRewards(string channelId)
-    {
-        client!.ListenToChannelPoints(channelId);
-        client!.OnChannelPointsRewardRedeemed += Client_OnChannelPointsRewardRedeemed;
     }
 
     private void Client_OnPubSubServiceClosed(object? sender, EventArgs e)
@@ -63,13 +56,6 @@ public class PubSubService(ILogger<PubSubService> logger, ILogger<TwitchPubSub> 
     private void Client_OnViewCount(object? sender, OnViewCountArgs e)
     {
         logger.LogDebug("PubSub_OnViewCount: {Viewers}", e.Viewers);
-    }
-
-    private void Client_OnChannelPointsRewardRedeemed(object? sender, OnChannelPointsRewardRedeemedArgs e)
-    {
-        logger.LogDebug("PubSub_OnChannelPointsRewardRedeemed: {User}", e.RewardRedeemed.Redemption.User.DisplayName);
-        var command = new ProcessRewardRedeemCommand(e.RewardRedeemed.Redemption);
-        mediator.Send(command);
     }
 
     private void Client_OnCommercial(object? sender, OnCommercialArgs e)

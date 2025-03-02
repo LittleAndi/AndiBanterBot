@@ -235,7 +235,9 @@ public class WebsocketService : IWebsocketService
 
     private Task OnChannelPointsCustomRewardRedemption(object sender, ChannelPointsCustomRewardRedemptionArgs args)
     {
-        logger.LogDebug("OnChannelUpdate: {@Notification}", args.Notification);
+        logger.LogDebug("OnChannelPointsCustomRewardRedemption: {@Notification}", args.Notification);
+        var command = new ProcessRewardRedeemCommand(args.Notification.Payload.Event.Reward, args.Notification.Payload.Event.UserInput);
+        mediator.Send(command);
         return Task.CompletedTask;
     }
 
@@ -503,6 +505,8 @@ public class WebsocketService : IWebsocketService
 
             await SubscribeToEvent("channel.subscribe", "1", conditions);
             await SubscribeToEvent("channel.subscription.message", "1", conditions);
+
+            await SubscribeToEvent("channel.channel_points_custom_reward_redemption.add", "1", conditions);
 
             await SubscribeToEvent("channel.chat.message", "1", new Dictionary<string, string>()
                 {
