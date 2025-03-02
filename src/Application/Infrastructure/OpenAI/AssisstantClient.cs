@@ -27,7 +27,7 @@ public class AssistantClient(IOptionsMonitor<OpenAIClientOptions> optionsMonitor
         messageCreationOptions.Metadata.Add("nick", nick);
         messageCreationOptions.Metadata.Add("role", role);
 
-        var chatMessage = $"{nick} ({role}): {message}";
+        var chatMessage = $"{message}";
 
         await assistantClient.CreateMessageAsync(threadId, MessageRole.User, [MessageContent.FromText(chatMessage)], messageCreationOptions);
     }
