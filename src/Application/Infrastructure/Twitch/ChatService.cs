@@ -59,6 +59,8 @@ public partial class ChatService(ILoggerFactory loggerFactory, ILogger<ChatServi
     {
         threadId = await assistantClient.NewThread(new ThreadCreationOptions());
 
+        logger.LogInformation("Starting a new assistant thread: {ThreadId}", threadId);
+
         ConnectionCredentials credentials = new(options.Username, accessToken);
         client.Initialize(credentials, options.Channel);
 
