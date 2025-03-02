@@ -66,7 +66,6 @@ public static class Endpoints
 
         app.MapGet("/pubsubcallback", (
             HttpContext context,
-            IPubSubService pubSubService,
             IWebsocketService websocketService
         ) =>
         {
@@ -97,7 +96,6 @@ public static class Endpoints
                 return Results.Text("Error", "text/html");
             }
 
-            pubSubService.Start(tokenResponse.access_token);
             websocketService.StartAsync(tokenResponse.access_token);
 
             return Results.Redirect("/");

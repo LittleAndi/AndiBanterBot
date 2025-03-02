@@ -17,7 +17,6 @@
     <PackageReference Include="TwitchLib.Api" Version="3.10.0-preview-92a4359" />
     <PackageReference Include="Twitchlib.Client" Version="4.0.0-preview-5ef35d539836f8bcd29bd836a23b9e853020acfa" />
     <PackageReference Include="TwitchLib.EventSub.Websockets" Version="0.6.0-preview-dbc970c" />
-    <PackageReference Include="TwitchLib.PubSub" Version="4.0.0-preview-10721e305d3e0b2ac6c93bb75d44140ce38b1322" />
   </ItemGroup>
   <ItemGroup Label="Added due to known vulnerabilities">
     <PackageReference Include="System.Text.Json" Version="9.0.2" />
