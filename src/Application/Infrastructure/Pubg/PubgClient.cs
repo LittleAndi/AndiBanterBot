@@ -31,7 +31,7 @@ public class PubgApiClient(IHttpClientFactory httpClientFactory, IOptions<PubgCl
             throw new Exception("Player not found");
         }
 
-        return pubgListOfData.Data.First().Id;
+        return pubgListOfData!.Data.First().Id;
     }
 
     public async Task<Models.Match> GetMatch(string matchId, CancellationToken cancellationToken = default)

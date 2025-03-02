@@ -11,51 +11,51 @@ using N = System.Text.Json.Serialization.JsonIgnoreCondition;
 
 public partial class Match
 {
-    [J("data")] public Data Data { get; set; }
-    [J("included")] public List<Included> Included { get; set; }
-    [J("links")] public MatchLinks Links { get; set; }
-    [J("meta")] public Meta Meta { get; set; }
+    [J("data")] public required Data Data { get; set; }
+    [J("included")] public required List<Included> Included { get; set; }
+    [J("links")] public required MatchLinks Links { get; set; }
+    [J("meta")] public required Meta Meta { get; set; }
 }
 
 public partial class Data
 {
-    [J("type")] public string Type { get; set; }
-    [J("id")] public Guid Id { get; set; }
-    [J("attributes")] public DataAttributes Attributes { get; set; }
-    [J("relationships")] public DataRelationships Relationships { get; set; }
-    [J("links")] public DataLinks Links { get; set; }
+    [J("type")] public required string Type { get; set; }
+    [J("id")] public required Guid Id { get; set; }
+    [J("attributes")] public required DataAttributes Attributes { get; set; }
+    [J("relationships")] public required DataRelationships Relationships { get; set; }
+    [J("links")] public required DataLinks Links { get; set; }
 }
 
 public partial class DataAttributes
 {
-    [J("titleId")] public string TitleId { get; set; }
+    [J("titleId")] public required string TitleId { get; set; }
     [J("shardId")] public ShardId ShardId { get; set; }
-    [J("tags")] public object Tags { get; set; }
-    [J("mapName")] public string MapName { get; set; }
+    [J("tags")] public required object Tags { get; set; }
+    [J("mapName")] public required string MapName { get; set; }
     [J("isCustomMatch")] public bool IsCustomMatch { get; set; }
     [J("duration")] public long Duration { get; set; }
-    [J("stats")] public object Stats { get; set; }
-    [J("gameMode")] public string GameMode { get; set; }
-    [J("seasonState")] public string SeasonState { get; set; }
+    [J("stats")] public required object Stats { get; set; }
+    [J("gameMode")] public required string GameMode { get; set; }
+    [J("seasonState")] public required string SeasonState { get; set; }
     [J("createdAt")] public DateTimeOffset CreatedAt { get; set; }
-    [J("matchType")] public string MatchType { get; set; }
+    [J("matchType")] public required string MatchType { get; set; }
 }
 
 public partial class DataLinks
 {
-    [J("self")] public Uri Self { get; set; }
-    [J("schema")] public string Schema { get; set; }
+    [J("self")] public required Uri Self { get; set; }
+    [J("schema")] public required string Schema { get; set; }
 }
 
 public partial class DataRelationships
 {
-    [J("assets")] public Assets Assets { get; set; }
-    [J("rosters")] public Assets Rosters { get; set; }
+    [J("assets")] public required Assets Assets { get; set; }
+    [J("rosters")] public required Assets Rosters { get; set; }
 }
 
 public partial class Assets
 {
-    [J("data")] public List<Datum> Data { get; set; }
+    [J("data")] public required List<Datum> Data { get; set; }
 }
 
 public partial class Datum
@@ -68,20 +68,20 @@ public partial class Included
 {
     [J("type")] public TypeEnum Type { get; set; }
     [J("id")] public Guid Id { get; set; }
-    [J("attributes")] public IncludedAttributes Attributes { get; set; }
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("relationships")] public IncludedRelationships Relationships { get; set; }
+    [J("attributes")] public required IncludedAttributes Attributes { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("relationships")] public IncludedRelationships? Relationships { get; set; }
 }
 
 public partial class IncludedAttributes
 {
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("actor")] public string Actor { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("actor")] public string? Actor { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("shardId")] public ShardId? ShardId { get; set; }
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("stats")] public Stats Stats { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("stats")] public Stats? Stats { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("won")][JsonConverter(typeof(ParseStringConverter))] public bool? Won { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("createdAt")] public DateTimeOffset? CreatedAt { get; set; }
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("URL")] public Uri Url { get; set; }
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("name")] public string Name { get; set; }
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("description")] public string Description { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("URL")] public Uri? Url { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("name")] public string? Name { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("description")] public string? Description { get; set; }
 }
 
 public partial class Stats
@@ -97,8 +97,8 @@ public partial class Stats
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("killStreaks")] public long? KillStreaks { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("kills")] public long? Kills { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("longestKill")] public double? LongestKill { get; set; }
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("name")] public string Name { get; set; }
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("playerId")] public string PlayerId { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("name")] public string? Name { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("playerId")] public string? PlayerId { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("revives")] public long? Revives { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("rideDistance")] public double? RideDistance { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)][J("roadKills")] public long? RoadKills { get; set; }
@@ -115,13 +115,13 @@ public partial class Stats
 
 public partial class IncludedRelationships
 {
-    [J("team")] public Assets Team { get; set; }
-    [J("participants")] public Assets Participants { get; set; }
+    [J("team")] public Assets? Team { get; set; }
+    [J("participants")] public required Assets Participants { get; set; }
 }
 
 public partial class MatchLinks
 {
-    [J("self")] public Uri Self { get; set; }
+    [J("self")] public required Uri Self { get; set; }
 }
 
 public partial class Meta
