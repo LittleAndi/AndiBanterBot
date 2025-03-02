@@ -58,8 +58,8 @@ public record TeamData(
 }
 
 public record Participant(
-    string Name,
-    string PlayerId,
+    string? Name,
+    string? PlayerId,
     long? KillPlace,
     long? WinPlace,
     long? Kills,
