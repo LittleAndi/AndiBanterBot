@@ -1,0 +1,48 @@
+@page "/pubsubcallback"
+@using System.Web
+@using System.Text.Json.Serialization
+@using Microsoft.AspNetCore.Components.Web
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+
+<PageTitle>PubSub OAuth Callback</PageTitle>
+
+<h1>PubSub OAuth Callback</h1>
+
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-danger">
+        Error: @error
+    </div>
+}
+else if (!string.IsNullOrEmpty(accessToken))
+{
+    <div class="alert alert-success">
+        Successfully authenticated! Starting services...
+    </div>
+}
+else
+{
+    <div>Processing...</div>
+}
+
+@code {
+    private string? error;
+    private string? accessToken;
+    private HttpClient httpClient = new();
+
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(NavigationManager.Uri);
+        var query = HttpUtility.ParseQueryString(uri.Query);
+
+        var code = query["code"];
+        var scope = query["scope"];
+
+        if (string.IsNullOrEmpty(code))
+        {
+            error = "No authorization code received";
+            return;
+        }
+    }
+}

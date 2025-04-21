@@ -1,0 +1,65 @@
+@page "/callback"
+@using System.Web
+@using System.Text.Json.Serialization
+@using Microsoft.AspNetCore.Components.Web
+@inject IConfiguration Configuration
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+
+<PageTitle>OAuth Callback</PageTitle>
+
+<h1>OAuth Callback</h1>
+
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-danger">
+        Error: @error
+    </div>
+}
+else if (!string.IsNullOrEmpty(accessToken))
+{
+    <div class="alert alert-success">
+        Successfully authenticated! You can now close this window.
+    </div>
+}
+else
+{
+    <div>Processing...</div>
+}
+
+@code {
+    private string? error;
+    private string? accessToken;
+    private HttpClient httpClient = new();
+
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(NavigationManager.Uri);
+        var query = HttpUtility.ParseQueryString(uri.Query);
+
+        var code = query["code"];
+        if (string.IsNullOrEmpty(code))
+        {
+            error = "No authorization code received";
+            return;
+        }
+    }
+
+    private class TokenResponse
+    {
+        [JsonPropertyName("access_token")]
+        public string? AccessToken { get; set; }
+
+        [JsonPropertyName("refresh_token")]
+        public string? RefreshToken { get; set; }
+
+        [JsonPropertyName("expires_in")]
+        public int ExpiresIn { get; set; }
+
+        [JsonPropertyName("scope")]
+        public string[]? Scope { get; set; }
+
+        [JsonPropertyName("token_type")]
+        public string? TokenType { get; set; }
+    }
+}

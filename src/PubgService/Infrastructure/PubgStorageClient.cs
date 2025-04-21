@@ -1,8 +1,3 @@
-using System.Text;
-using Azure.Storage.Blobs;
-using Azure.Storage.Blobs.Models;
-using Microsoft.Extensions.Azure;
-
 namespace Application.Infrastructure.Pubg;
 
 public interface IPubgStorageClient
