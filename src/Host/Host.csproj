@@ -2,16 +2,17 @@
   <Sdk Name="Aspire.AppHost.Sdk" Version="9.2.0" />
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UserSecretsId>f05efb62-7e93-4daa-8eea-e65c808e8860</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="9.2.0" />
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="13.1.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Web\Web.csproj" />
     <ProjectReference Include="..\PubgService\PubgService.csproj" />
+    <ProjectReference Include="..\TwitchService\TwitchService.csproj" />
   </ItemGroup>
 </Project>

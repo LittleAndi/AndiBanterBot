@@ -2,8 +2,11 @@
 @using System.Web
 @using System.Text.Json.Serialization
 @using Microsoft.AspNetCore.Components.Web
-@inject IConfiguration Configuration
+@using Web.Components.Services
 @inject NavigationManager NavigationManager
+@inject TwitchApiClient TwitchApiClient
+@inject IConfiguration Configuration
+@inject IJSRuntime JSRuntime
 @rendermode InteractiveServer
 
 <PageTitle>OAuth Callback</PageTitle>
@@ -16,10 +19,16 @@
         Error: @error
     </div>
 }
-else if (!string.IsNullOrEmpty(accessToken))
+else if (codeAquired)
 {
     <div class="alert alert-success">
-        Successfully authenticated! You can now close this window.
+        Successfully authenticated!
+        <span class="d-flex align-items-center gap-2">
+            <span style="filter: blur(4px)">
+                <tt>@token</tt>
+            </span>
+            <i class="bi bi-clipboard cursor-pointer" @onclick="CopyToClipboard"></i>
+        </span>
     </div>
 }
 else
@@ -29,37 +38,41 @@ else
 
 @code {
     private string? error;
-    private string? accessToken;
+    private bool codeAquired = false;
+    private string? token;
     private HttpClient httpClient = new();
 
-    protected override void OnInitialized()
+    protected override Task OnInitializedAsync()
     {
         var uri = new Uri(NavigationManager.Uri);
         var query = HttpUtility.ParseQueryString(uri.Query);
 
-        var code = query["code"];
-        if (string.IsNullOrEmpty(code))
+        token = query["code"];
+        var scopes = query["scope"];
+
+        if (string.IsNullOrEmpty(token))
         {
             error = "No authorization code received";
-            return;
+            return Task.CompletedTask;
         }
+
+        if (string.IsNullOrEmpty(scopes))
+        {
+            error = "No scopes received";
+            return Task.CompletedTask;
+        }
+
+        codeAquired = true;
+
+        _ = Task.Run(() => TwitchApiClient.StartEventSub(token, scopes));
+
+        //NavigationManager.NavigateTo("/");
+
+        return Task.CompletedTask;
     }
 
-    private class TokenResponse
+    private async Task CopyToClipboard()
     {
-        [JsonPropertyName("access_token")]
-        public string? AccessToken { get; set; }
-
-        [JsonPropertyName("refresh_token")]
-        public string? RefreshToken { get; set; }
-
-        [JsonPropertyName("expires_in")]
-        public int ExpiresIn { get; set; }
-
-        [JsonPropertyName("scope")]
-        public string[]? Scope { get; set; }
-
-        [JsonPropertyName("token_type")]
-        public string? TokenType { get; set; }
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", token);
     }
 }

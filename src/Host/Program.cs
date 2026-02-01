@@ -9,6 +9,13 @@ builder.Configuration.AddJsonFile("appsettings.prompts.json", optional: true, re
 builder.AddProject<Projects.PubgService>("pubg")
     .WithEnvironment("ASPNETCORE_ENVIRONMENT", environment)
     .WithEnvironment("DOTNET_ENVIRONMENT", environment);
-builder.AddProject<Projects.Web>("web").WithExternalHttpEndpoints();
+
+var twitch = builder.AddProject<Projects.TwitchService>("twitch")
+    .WithEnvironment("ASPNETCORE_ENVIRONMENT", environment)
+    .WithEnvironment("DOTNET_ENVIRONMENT", environment);
+
+builder.AddProject<Projects.Web>("web")
+    .WithReference(twitch)
+    .WithExternalHttpEndpoints();
 
 builder.Build().Run();

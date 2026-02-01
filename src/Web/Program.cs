@@ -1,10 +1,21 @@
+using TwitchLib.Client.Interfaces;
 using Web.Components;
+using Web.Components.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddHttpClient("twitch", (ServiceProvider, client) =>
+{
+    client.BaseAddress = new("https+http://twitch");
+});
+builder.Services.AddTransient<TwitchApiClient>();
+
 
 var app = builder.Build();
 
@@ -17,7 +28,6 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 
 app.UseAntiforgery();
 

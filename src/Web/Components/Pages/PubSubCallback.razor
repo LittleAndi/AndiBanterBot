@@ -2,7 +2,9 @@
 @using System.Web
 @using System.Text.Json.Serialization
 @using Microsoft.AspNetCore.Components.Web
+@using Web.Components.Services
 @inject NavigationManager NavigationManager
+@inject TwitchApiClient TwitchApiClient
 @rendermode InteractiveServer
 
 <PageTitle>PubSub OAuth Callback</PageTitle>
@@ -31,18 +33,30 @@ else
     private string? accessToken;
     private HttpClient httpClient = new();
 
-    protected override void OnInitialized()
+    protected override Task OnInitializedAsync()
     {
         var uri = new Uri(NavigationManager.Uri);
         var query = HttpUtility.ParseQueryString(uri.Query);
 
         var code = query["code"];
-        var scope = query["scope"];
+        var scopes = query["scope"];
 
         if (string.IsNullOrEmpty(code))
         {
             error = "No authorization code received";
-            return;
+            return Task.CompletedTask;
         }
+
+        if (string.IsNullOrEmpty(scopes))
+        {
+            error = "No scopes received";
+            return Task.CompletedTask;
+        }
+
+        _ = Task.Run(() => TwitchApiClient.SubscribeToBroadcasterSubscriptions(code, scopes));
+
+        NavigationManager.NavigateTo("/broadcaster/status");
+
+        return Task.CompletedTask;
     }
 }
