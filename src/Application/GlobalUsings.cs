@@ -18,5 +18,4 @@ global using TwitchLib.Client.Models;
 global using TwitchLib.EventSub.Core.Models.ChannelPoints;
 global using TwitchLib.EventSub.Websockets;
 global using TwitchLib.EventSub.Websockets.Core.EventArgs;
-global using TwitchLib.EventSub.Websockets.Core.EventArgs.Channel;
 global using TwitchLib.EventSub.Websockets.Extensions;
