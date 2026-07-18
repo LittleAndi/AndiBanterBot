@@ -33,7 +33,7 @@ else
     private string? accessToken;
     private HttpClient httpClient = new();
 
-    protected override Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync()
     {
         var uri = new Uri(NavigationManager.Uri);
         var query = HttpUtility.ParseQueryString(uri.Query);
@@ -44,20 +44,28 @@ else
         if (string.IsNullOrEmpty(code))
         {
             error = "No authorization code received";
-            return Task.CompletedTask;
+            return;
         }
 
         if (string.IsNullOrEmpty(scopes))
         {
             error = "No scopes received";
-            return Task.CompletedTask;
+            return;
         }
 
         var redirectUri = NavigationManager.BaseUri + "pubsubcallback";
-        _ = Task.Run(() => TwitchApiClient.SendAuthCode(code, scopes, redirectUri));
+        var success = await TwitchApiClient.SendAuthCode(code, scopes, redirectUri);
 
+        if (!success)
+        {
+            error = "Twitch service rejected the authorization code";
+            return;
+        }
+
+        accessToken = code;
+        StateHasChanged();
+
+        await Task.Delay(1000);
         NavigationManager.NavigateTo("/broadcaster/status");
-
-        return Task.CompletedTask;
     }
 }
