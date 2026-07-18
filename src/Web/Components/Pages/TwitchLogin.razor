@@ -1,20 +1,38 @@
 @page "/twitchlogin"
 @using System.Web
+@using Web.Components.Services
 @inject NavigationManager Navigator
+@inject TwitchApiClient TwitchApiClient
 @rendermode InteractiveServer
 
 <PageTitle>Twitch Login</PageTitle>
 
 <h1>Get User Access Tokens</h1>
 
-<div>
-    <a href='@botUrl'>Authorize
-        Bot with bot account</a>
+@if (status is null)
+{
+    <div class="alert alert-warning">
+        Could not reach the Twitch service, status is unknown.
+    </div>
+}
+else
+{
+    <div class="alert @(status.WebSocketConnected ? "alert-success" : "alert-secondary")">
+        EventSub websocket: @(status.WebSocketConnected ? "connected" : "not connected")
+        @if (status.LastMessageAtUtc is not null)
+        {
+            <span> — last message @status.LastMessageAtUtc.Value.ToLocalTime().ToString("g")</span>
+        }
+    </div>
+}
+
+<div class="mb-3">
+    <h5>Bot account @RoleBadge(status?.Bot)</h5>
+    <a href='@botUrl'>Authorize Bot with bot account</a>
 </div>
-<div>
-    <a
-        href='@streamerUrl'>Authorize
-        Bot with stream account</a>
+<div class="mb-3">
+    <h5>Broadcaster account @RoleBadge(status?.Broadcaster)</h5>
+    <a href='@streamerUrl'>Authorize Bot with stream account</a>
 </div>
 
 @code {
@@ -23,6 +41,7 @@
 
     private string botUrl = string.Empty;
     private string streamerUrl = string.Empty;
+    private AuthStatusResponse? status;
 
     protected override void OnInitialized()
     {
@@ -33,9 +52,23 @@
         botUrl = $"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={clientId}&redirect_uri={HttpUtility.UrlEncode(Navigator.BaseUri + "callback")}&scope={botScopes}";
 
         streamerUrl = $"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={clientId}&redirect_uri={HttpUtility.UrlEncode(Navigator.BaseUri + "pubsubcallback")}&scope={broadcasterScopes}";
-
-        Console.WriteLine(streamerUrl);
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            status = await TwitchApiClient.GetAuthStatus();
+            StateHasChanged();
+        }
+    }
+
+    private static string RoleBadge(RoleStatus? role) => role switch
+    {
+        null => "— not logged in",
+        { NeedsLogin: true } => $"— {role.Login}: login expired, please log in again",
+        _ => $"— logged in as {role.Login}",
+    };
 
     private static string BuildScopes(string[] scopes)
     {

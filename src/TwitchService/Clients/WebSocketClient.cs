@@ -3,6 +3,7 @@ namespace Application.Features.Twitch;
 public interface IWebSocketClient : IDisposable
 {
     Task<bool> ConnectAsync(string url, CancellationToken cancellationToken = default);
+    Task CloseAsync(CancellationToken cancellationToken = default);
     Task ReceiveMessagesAsync(CancellationToken cancellationToken = default);
     Task SendMessageAsync(string message, CancellationToken cancellationToken = default);
     event EventHandler<TwitchMessageEventArgs> OnMessageReceived;
@@ -41,6 +42,31 @@ public class WebSocketClient(ILogger<WebSocketClient> logger) : IWebSocketClient
         await _webSocket.ConnectAsync(new Uri(url), cancellationToken);
         logger.LogInformation("WebSocket connected successfully");
         return true;
+    }
+
+    public async Task CloseAsync(CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+
+        if (_webSocket.State is not (WebSocketState.Open or WebSocketState.CloseReceived))
+        {
+            return;
+        }
+
+        try
+        {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
+            // Send-side close only: a pending ReceiveAsync in the receive loop picks up the
+            // close ack and ends the loop gracefully
+            await _webSocket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "Client closing", timeoutCts.Token);
+            logger.LogInformation("WebSocket close initiated");
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Graceful WebSocket close failed, aborting connection");
+            _webSocket.Abort();
+        }
     }
 
     public async Task ReceiveMessagesAsync(CancellationToken cancellationToken = default)

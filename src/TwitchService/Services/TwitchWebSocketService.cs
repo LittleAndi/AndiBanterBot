@@ -3,8 +3,12 @@ namespace Application.Features.Twitch;
 public interface ITwitchWebSocketService
 {
     Task Start(CancellationToken cancellationToken = default);
+    Task CloseAsync(CancellationToken cancellationToken = default);
     Task SubscribeToBroadcasterSubscriptions(CancellationToken cancellationToken = default);
+    TwitchWebSocketStatus GetStatus();
 }
+
+public record TwitchWebSocketStatus(bool Connected, string SessionId, DateTime LastMessageAtUtc, TimeSpan KeepaliveTimeout);
 
 public class TwitchWebSocketService(
     IWebSocketClient webSocketClient,
@@ -18,12 +22,18 @@ public class TwitchWebSocketService(
     private readonly HttpClient twitchHttpClientUserAccess = httpClientFactory.CreateClient("TwitchClientUserAccess");
     private readonly string broadcasterUsername = configuration["Twitch:BroadcasterUsername"] ?? throw new InvalidOperationException("BroadcasterUsername not configured");
     private readonly string monitoredUsername = configuration["Twitch:MonitoredUsername"] ?? throw new InvalidOperationException("MonitoredUsername not configured");
+    private const int KeepaliveTimeoutSeconds = 60;
+    private static readonly string DefaultWebSocketUrl = $"wss://eventsub.wss.twitch.tv/ws?keepalive_timeout_seconds={KeepaliveTimeoutSeconds}";
+
     private readonly SemaphoreSlim startGate = new(1, 1);
     private string? broadcasterId;
     private string? userId;
     private bool connectingOrConnected = false;
     private bool handlersAttached = false;
     private string sessionId = string.Empty;
+    private string? pendingReconnectUrl;
+    private bool resumingSession = false;
+    private DateTime lastMessageAtUtc = DateTime.MinValue;
 
     public async Task Start(CancellationToken cancellationToken = default)
     {
@@ -46,8 +56,15 @@ public class TwitchWebSocketService(
                 handlersAttached = true;
             }
 
-            await webSocketClient.ConnectAsync("wss://eventsub.wss.twitch.tv/ws?keepalive_timeout_seconds=60", cancellationToken);
+            // A session_reconnect message from Twitch supplies a one-shot URL that resumes
+            // the session with its subscriptions intact
+            var url = pendingReconnectUrl ?? DefaultWebSocketUrl;
+            resumingSession = pendingReconnectUrl is not null;
+            pendingReconnectUrl = null;
+
+            await webSocketClient.ConnectAsync(url, cancellationToken);
             connectingOrConnected = true;
+            lastMessageAtUtc = DateTime.UtcNow;
 
             _ = ReceiveLoopAsync(hostApplicationLifetime.ApplicationStopping);
         }
@@ -61,6 +78,16 @@ public class TwitchWebSocketService(
         {
             startGate.Release();
         }
+    }
+
+    public async Task CloseAsync(CancellationToken cancellationToken = default)
+    {
+        await webSocketClient.CloseAsync(cancellationToken);
+    }
+
+    public TwitchWebSocketStatus GetStatus()
+    {
+        return new TwitchWebSocketStatus(connectingOrConnected, sessionId, lastMessageAtUtc, TimeSpan.FromSeconds(KeepaliveTimeoutSeconds));
     }
 
     private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
@@ -139,6 +166,13 @@ public class TwitchWebSocketService(
             return;
         }
 
+        if (resumingSession)
+        {
+            resumingSession = false;
+            logger.LogInformation("Session resumed after reconnect, existing subscriptions are preserved");
+            return;
+        }
+
         if (tokenStore.HasToken(TwitchUserRole.Bot))
         {
             await SubscribeToChannelChatMessages(sessionId, cancellationToken);
@@ -160,7 +194,26 @@ public class TwitchWebSocketService(
 
     private async Task HandleMessageReceived(object? sender, TwitchMessageEventArgs e)
     {
+        lastMessageAtUtc = DateTime.UtcNow;
+
         logger.LogInformation("Message received: {TwitchMessageEventArgs}", e.RawMessage);
+
+        if (e.Response?.Metadata.MessageType == "session_reconnect")
+        {
+            var reconnectUrl = e.Response.Payload.Session?.ReconnectUrl;
+            if (!string.IsNullOrEmpty(reconnectUrl))
+            {
+                logger.LogInformation("Twitch requested a session reconnect, moving to new edge server");
+                pendingReconnectUrl = reconnectUrl;
+                // Closing ends the receive loop; the supervisor then reconnects using the pending URL
+                await webSocketClient.CloseAsync();
+            }
+            else
+            {
+                logger.LogError("session_reconnect message without a reconnect URL");
+            }
+            return;
+        }
 
         if (e.Response?.Metadata.MessageType == "channel.chat.message")
         {

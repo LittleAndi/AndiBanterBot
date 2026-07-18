@@ -8,12 +8,15 @@ public enum TwitchUserRole
 
 public record TwitchTokenInfo(TwitchUserRole Role, string Login, string UserId);
 
+public record TwitchTokenStatus(string Login, string UserId, DateTime ExpiresAtUtc, bool NeedsLogin, string[] Scopes);
+
 public interface ITwitchTokenStore
 {
     Task<TwitchTokenInfo> ExchangeCodeAsync(string code, string redirectUri, CancellationToken cancellationToken = default);
     Task<string?> GetAccessTokenAsync(TwitchUserRole role, CancellationToken cancellationToken = default);
     Task<string?> RefreshAsync(TwitchUserRole role, CancellationToken cancellationToken = default);
     bool HasToken(TwitchUserRole role);
+    IReadOnlyDictionary<TwitchUserRole, TwitchTokenStatus> GetStatus();
 }
 
 public class TwitchTokenStore : ITwitchTokenStore
@@ -42,7 +45,17 @@ public class TwitchTokenStore : ITwitchTokenStore
     {
         lock (tokens)
         {
-            return tokens.TryGetValue(role, out var token) && !string.IsNullOrEmpty(token.RefreshToken);
+            return tokens.TryGetValue(role, out var token) && !string.IsNullOrEmpty(token.RefreshToken) && !token.NeedsLogin;
+        }
+    }
+
+    public IReadOnlyDictionary<TwitchUserRole, TwitchTokenStatus> GetStatus()
+    {
+        lock (tokens)
+        {
+            return tokens.ToDictionary(
+                pair => pair.Key,
+                pair => new TwitchTokenStatus(pair.Value.Login, pair.Value.UserId, pair.Value.ExpiresAtUtc, pair.Value.NeedsLogin, pair.Value.Scopes));
         }
     }
 
@@ -153,8 +166,22 @@ public class TwitchTokenStore : ITwitchTokenStore
             if (!response.IsSuccessStatusCode)
             {
                 var error = await response.Content.ReadAsStringAsync(cancellationToken);
-                logger.LogError("Refresh of {Role} token failed; a new browser login is required. Status: {StatusCode}, Response: {Response}",
-                    role, response.StatusCode, error);
+                var tokenRejected = response.StatusCode is System.Net.HttpStatusCode.BadRequest
+                    or System.Net.HttpStatusCode.Unauthorized
+                    or System.Net.HttpStatusCode.Forbidden;
+
+                logger.LogError("Refresh of {Role} token failed. Status: {StatusCode}, Response: {Response}. {Consequence}",
+                    role, response.StatusCode, error,
+                    tokenRejected ? "A new browser login is required." : "Will retry on next request.");
+
+                if (tokenRejected)
+                {
+                    lock (tokens)
+                    {
+                        token.NeedsLogin = true;
+                        Save();
+                    }
+                }
                 return null;
             }
 
@@ -239,5 +266,6 @@ public class TwitchTokenStore : ITwitchTokenStore
         public string Login { get; set; } = string.Empty;
         public string UserId { get; set; } = string.Empty;
         public string[] Scopes { get; set; } = [];
+        public bool NeedsLogin { get; set; }
     }
 }
