@@ -3,44 +3,44 @@ using OpenAI.Chat;
 
 namespace Application.Infrastructure.OpenAI;
 
-public interface IPubgAIClient
-{
-    Task<string> GetPubgCompletion(string prompt, Pubg.Models.Match match, string mainParticipantName);
-}
+// public interface IPubgAIClient
+// {
+//     Task<string> GetPubgCompletion(string prompt, Pubg.Models.Match match, string mainParticipantName);
+// }
 
-public class PubgAIClient(IOptionsMonitor<PubgOpenAIClientOptions> optionsMonitor, ILogger<PubgAIClient> logger) : IPubgAIClient
-{
-    private readonly ChatClient client = new(optionsMonitor.CurrentValue.Model, optionsMonitor.CurrentValue.ApiKey);
-    private readonly ILogger<PubgAIClient> logger = logger;
-    private long totalInputTokenCount = 0;
-    private long totalOutputTokenCount = 0;
+// public class PubgAIClient(IOptionsMonitor<PubgOpenAIClientOptions> optionsMonitor, ILogger<PubgAIClient> logger) : IPubgAIClient
+// {
+//     private readonly ChatClient client = new(optionsMonitor.CurrentValue.Model, optionsMonitor.CurrentValue.ApiKey);
+//     private readonly ILogger<PubgAIClient> logger = logger;
+//     private long totalInputTokenCount = 0;
+//     private long totalOutputTokenCount = 0;
 
-    public async Task<string> GetPubgCompletion(string prompt, Pubg.Models.Match match, string mainParticipantName)
-    {
-        var pubgAIMatchModel = PubgAIMatchModel.FromMatch(match, mainParticipantName);
+//     public async Task<string> GetPubgCompletion(string prompt, Pubg.Models.Match match, string mainParticipantName)
+//     {
+//         var pubgAIMatchModel = PubgAIMatchModel.FromMatch(match, mainParticipantName);
 
-        var options = optionsMonitor.CurrentValue;
-        ChatCompletion chatCompletion = await client.CompleteChatAsync(
-            [
-                new SystemChatMessage(options.PubgGameSystemPrompt),
-                new UserChatMessage(
-                    ChatMessageContentPart.CreateTextPart(prompt),
-                    ChatMessageContentPart.CreateTextPart(JsonSerializer.Serialize(pubgAIMatchModel, Infrastructure.Pubg.Models.Converter.Settings))
-                ),
-            ]
-        );
+//         var options = optionsMonitor.CurrentValue;
+//         ChatCompletion chatCompletion = await client.CompleteChatAsync(
+//             [
+//                 new SystemChatMessage(options.PubgGameSystemPrompt),
+//                 new UserChatMessage(
+//                     ChatMessageContentPart.CreateTextPart(prompt),
+//                     ChatMessageContentPart.CreateTextPart(JsonSerializer.Serialize(pubgAIMatchModel, Infrastructure.Pubg.Models.Converter.Settings))
+//                 ),
+//             ]
+//         );
 
-        // Logging for the usage from this call
-        logger.LogInformation("Usage: {@Usage}", chatCompletion.Usage);
+//         // Logging for the usage from this call
+//         logger.LogInformation("Usage: {@Usage}", chatCompletion.Usage);
 
-        // Log aggregated counts
-        totalInputTokenCount += chatCompletion.Usage.InputTokenCount;
-        totalOutputTokenCount += chatCompletion.Usage.OutputTokenCount;
-        logger.LogInformation("Total token counts: {TotalInputTokenCount} {TotalOutputTokenCount}", totalInputTokenCount, totalOutputTokenCount);
+//         // Log aggregated counts
+//         totalInputTokenCount += chatCompletion.Usage.InputTokenCount;
+//         totalOutputTokenCount += chatCompletion.Usage.OutputTokenCount;
+//         logger.LogInformation("Total token counts: {TotalInputTokenCount} {TotalOutputTokenCount}", totalInputTokenCount, totalOutputTokenCount);
 
-        return new string(chatCompletion.Content[0].Text);
-    }
-}
+//         return new string(chatCompletion.Content[0].Text);
+//     }
+// }
 
 public class PubgOpenAIClientOptions : IConfigurationOptions
 {

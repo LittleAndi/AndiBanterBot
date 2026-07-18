@@ -1,34 +1,21 @@
-﻿Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    .Enrich.FromLogContext()
-    .CreateBootstrapLogger();
+using Microsoft.Extensions.Configuration;
 
-try
-{
-    var builder = WebApplication.CreateBuilder(args);
-    builder.Configuration.AddJsonFile("appsettings.prompts.json", optional: true, reloadOnChange: true);
-    builder.Services.AddApplication();
-    builder.Services.AddInfrastructure(builder.Configuration);
-    builder.Host.UseSerilog((hostContext, provider, loggerConfiguration) =>
-    {
-        loggerConfiguration
-            .ReadFrom.Configuration(hostContext.Configuration)
-            .ReadFrom.Services(provider)
-            .Enrich.FromLogContext();
-    });
+var builder = DistributedApplication.CreateBuilder(args);
 
-    var app = builder.Build();
+var environment = builder.Environment.EnvironmentName;
 
-    app.UseHttpsRedirection();
-    app.MapEndpoints(builder.Configuration);
+builder.Configuration.AddJsonFile("appsettings.prompts.json", optional: true, reloadOnChange: true);
 
-    await app.RunAsync();
-}
-catch (Exception ex)
-{
-    Log.Fatal(ex, "An unhandled exception occured during bootstrapping");
-}
-finally
-{
-    Log.CloseAndFlush();
-}
+builder.AddProject<Projects.PubgService>("pubg")
+    .WithEnvironment("ASPNETCORE_ENVIRONMENT", environment)
+    .WithEnvironment("DOTNET_ENVIRONMENT", environment);
+
+var twitch = builder.AddProject<Projects.TwitchService>("twitch")
+    .WithEnvironment("ASPNETCORE_ENVIRONMENT", environment)
+    .WithEnvironment("DOTNET_ENVIRONMENT", environment);
+
+builder.AddProject<Projects.Web>("web")
+    .WithReference(twitch)
+    .WithExternalHttpEndpoints();
+
+builder.Build().Run();

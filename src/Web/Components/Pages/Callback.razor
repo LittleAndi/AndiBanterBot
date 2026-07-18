@@ -1,0 +1,79 @@
+@page "/callback"
+@using System.Web
+@using System.Text.Json.Serialization
+@using Microsoft.AspNetCore.Components.Web
+@using Web.Components.Services
+@inject NavigationManager NavigationManager
+@inject TwitchApiClient TwitchApiClient
+@inject IConfiguration Configuration
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>OAuth Callback</PageTitle>
+
+<h1>OAuth Callback</h1>
+
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-danger">
+        Error: @error
+    </div>
+}
+else if (codeAquired)
+{
+    <div class="alert alert-success">
+        Successfully authenticated!
+        <span class="d-flex align-items-center gap-2">
+            <span style="filter: blur(4px)">
+                <tt>@token</tt>
+            </span>
+            <i class="bi bi-clipboard cursor-pointer" @onclick="CopyToClipboard"></i>
+        </span>
+    </div>
+}
+else
+{
+    <div>Processing...</div>
+}
+
+@code {
+    private string? error;
+    private bool codeAquired = false;
+    private string? token;
+    private HttpClient httpClient = new();
+
+    protected override Task OnInitializedAsync()
+    {
+        var uri = new Uri(NavigationManager.Uri);
+        var query = HttpUtility.ParseQueryString(uri.Query);
+
+        token = query["code"];
+        var scopes = query["scope"];
+
+        if (string.IsNullOrEmpty(token))
+        {
+            error = "No authorization code received";
+            return Task.CompletedTask;
+        }
+
+        if (string.IsNullOrEmpty(scopes))
+        {
+            error = "No scopes received";
+            return Task.CompletedTask;
+        }
+
+        codeAquired = true;
+
+        var redirectUri = NavigationManager.BaseUri + "callback";
+        _ = Task.Run(() => TwitchApiClient.SendAuthCode(token, scopes, redirectUri));
+
+        //NavigationManager.NavigateTo("/");
+
+        return Task.CompletedTask;
+    }
+
+    private async Task CopyToClipboard()
+    {
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", token);
+    }
+}

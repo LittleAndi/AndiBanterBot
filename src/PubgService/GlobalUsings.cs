@@ -1,0 +1,16 @@
+global using Application;
+global using Application.Common;
+global using Application.Features;
+global using Application.Infrastructure.Pubg;
+global using Azure.Storage.Blobs;
+global using Azure.Storage.Blobs.Models;
+global using Microsoft.Extensions.Azure;
+global using Microsoft.Extensions.Configuration;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Hosting;
+global using Microsoft.Extensions.Logging;
+global using Polly;
+global using Polly.Extensions.Http;
+global using System.Net.Http.Headers;
+global using System.Text;
+global using System.Text.Json;

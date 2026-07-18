@@ -1,0 +1,38 @@
+@page "/broadcaster/login"
+@using System.Web
+@inject NavigationManager Navigator
+@rendermode InteractiveServer
+
+<PageTitle>Broadcaster Twitch Login</PageTitle>
+
+<h1>Get User Access Tokens</h1>
+
+<div>
+    <a
+        href='@streamerUrl'>Authorize
+        Bot with stream account</a>
+</div>
+
+@code {
+    [Inject]
+    private IConfiguration Configuration { get; set; } = default!;
+
+    private string streamerUrl = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        var clientId = Configuration["TwitchLib:ClientId"]!;
+        var botScopes = BuildScopes(Configuration!.GetSection("TwitchLib:BotScopes")!.Get<string[]>()!);
+        var broadcasterScopes = BuildScopes(Configuration!.GetSection("TwitchLib:BroadcasterScopes")!.Get<string[]>()!);
+
+        streamerUrl = $"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={clientId}&redirect_uri={HttpUtility.UrlEncode(Navigator.BaseUri + "pubsubcallback")}&scope={broadcasterScopes}";
+
+        Console.WriteLine(streamerUrl);
+    }
+
+    private static string BuildScopes(string[] scopes)
+    {
+        // Url encode the scopes string
+        return HttpUtility.UrlEncode(string.Join(" ", scopes));
+    }
+}

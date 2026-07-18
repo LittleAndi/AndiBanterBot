@@ -1,13 +1,11 @@
+using Microsoft.Extensions.Hosting;
+
 namespace Application.Features;
 
-public class PubgBackgroundService(IPubgApiClient pubgApiClient, IPubgStorageClient pubgStorageClient, IChatService chatService, ChatOptions options, IPubgAIClient pubgAiClient, IAudioClient audioClient, ILogger<PubgBackgroundService> logger) : BackgroundService
+public class PubgBackgroundService(IPubgApiClient pubgApiClient, IPubgStorageClient pubgStorageClient, ILogger<PubgBackgroundService> logger) : BackgroundService
 {
     private readonly IPubgApiClient pubgApiClient = pubgApiClient;
     private readonly IPubgStorageClient pubgStorageClient = pubgStorageClient;
-    private readonly IChatService chatService = chatService;
-    private readonly ChatOptions options = options;
-    private readonly IPubgAIClient pubgAiClient = pubgAiClient;
-    private readonly IAudioClient audioClient = audioClient;
     private readonly ILogger<PubgBackgroundService> logger = logger;
     private HashSet<string> MatchIds = [];
 
@@ -49,11 +47,11 @@ public class PubgBackgroundService(IPubgApiClient pubgApiClient, IPubgStorageCli
 
                     var match = await pubgApiClient.GetMatch(matchData.Id, stoppingToken);
                     await pubgStorageClient.SaveMatch(matchData.Id, match, stoppingToken);
-                    var response = await pubgAiClient.GetPubgCompletion(@"", match, "LittleAndi");
-                    await chatService.SendMessage(options.Channel, response, stoppingToken);
+                    // var response = await pubgAiClient.GetPubgCompletion(@"", match, "LittleAndi");
+                    // await chatService.SendMessage(options.Channel, response, stoppingToken);
 
                     // Play audio
-                    await audioClient.PlayTTS(response, GeneratedSpeechVoice.Echo, stoppingToken);
+                    // await audioClient.PlayTTS(response, GeneratedSpeechVoice.Echo, stoppingToken);
                 }
             }
         }

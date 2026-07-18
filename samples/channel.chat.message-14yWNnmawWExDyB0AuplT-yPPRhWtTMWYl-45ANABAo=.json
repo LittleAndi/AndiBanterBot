@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "message_id": "14yWNnmawWExDyB0AuplT-yPPRhWtTMWYl-45ANABAo=",
+    "message_type": "notification",
+    "message_timestamp": "2025-05-11T11:11:43.297019315Z",
+    "subscription_type": "channel.chat.message",
+    "subscription_version": "1"
+  },
+  "payload": {
+    "subscription": {
+      "id": "c786b303-0799-42e7-8839-030fe9a76eca",
+      "status": "enabled",
+      "type": "channel.chat.message",
+      "version": "1",
+      "condition": {
+        "broadcaster_user_id": "165699060",
+        "user_id": "1026888746"
+      },
+      "transport": {
+        "method": "websocket",
+        "session_id": "AgoQppdf6oOQTD2sg6RgYiw8ThIGY2VsbC1j"
+      },
+      "created_at": "2025-05-11T11:09:34.165729094Z",
+      "cost": 0
+    },
+    "event": {
+      "broadcaster_user_id": "165699060",
+      "broadcaster_user_login": "littleandi77",
+      "broadcaster_user_name": "LittleAndi77",
+      "source_broadcaster_user_id": null,
+      "source_broadcaster_user_login": null,
+      "source_broadcaster_user_name": null,
+      "chatter_user_id": "165699060",
+      "chatter_user_login": "littleandi77",
+      "chatter_user_name": "LittleAndi77",
+      "message_id": "04a50f2f-ce40-4202-9174-4a86e03276ca",
+      "source_message_id": null,
+      "is_source_only": null,
+      "message": {
+        "text": "test",
+        "fragments": [
+          {
+            "type": "text",
+            "text": "test",
+            "cheermote": null,
+            "emote": null,
+            "mention": null
+          }
+        ]
+      },
+      "color": "",
+      "badges": [
+        { "set_id": "broadcaster", "id": "1", "info": "" },
+        { "set_id": "subscriber", "id": "0", "info": "15" },
+        { "set_id": "turbo", "id": "1", "info": "" }
+      ],
+      "source_badges": null,
+      "message_type": "text",
+      "cheer": null,
+      "reply": null,
+      "channel_points_custom_reward_id": null,
+      "channel_points_animation_id": null
+    }
+  }
+}

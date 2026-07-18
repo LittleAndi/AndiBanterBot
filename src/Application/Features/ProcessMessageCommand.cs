@@ -6,12 +6,12 @@ public partial class ProcessMessageCommandHandler(
     IChatService chatService,
     IAIClient aiClient,
     IAssistantClient assistantClient,
-    IPubgAIClient aiPubgAIClient,
+    // IPubgAIClient aiPubgAIClient,
     IModerationClient moderationClient,
     IMediator mediator,
     ChatOptions options,
-    IPubgApiClient pubgApiClient,
-    IPubgStorageClient pubgStorageClient,
+    // IPubgApiClient pubgApiClient,
+    // IPubgStorageClient pubgStorageClient,
     ILogger<ProcessMessageCommandHandler> logger,
     ILoggerFactory loggerFactory
     ) : IRequestHandler<ProcessMessageCommand>
@@ -19,12 +19,12 @@ public partial class ProcessMessageCommandHandler(
     private readonly IChatService chatService = chatService;
     private readonly IAIClient aiClient = aiClient;
     private readonly IAssistantClient assistantClient = assistantClient;
-    private readonly IPubgAIClient aiPubgAIClient = aiPubgAIClient;
+    // private readonly IPubgAIClient aiPubgAIClient = aiPubgAIClient;
     private readonly IModerationClient moderationClient = moderationClient;
     private readonly IMediator mediator = mediator;
     private readonly ChatOptions options = options;
-    private readonly IPubgApiClient pubgApiClient = pubgApiClient;
-    private readonly IPubgStorageClient pubgStorageClient = pubgStorageClient;
+    // private readonly IPubgApiClient pubgApiClient = pubgApiClient;
+    // private readonly IPubgStorageClient pubgStorageClient = pubgStorageClient;
     private readonly ILogger<ProcessMessageCommandHandler> logger = logger;
     private readonly ILogger moderationLogger = loggerFactory.CreateLogger("Moderation");
     private readonly FixedMessageQueue messages = new(5);
@@ -62,40 +62,40 @@ public partial class ProcessMessageCommandHandler(
             return;
         }
 
-        if (request.ChatMessage.Message.StartsWith("!match", StringComparison.CurrentCultureIgnoreCase))
-        {
-            try
-            {
-                if (MatchRegex().IsMatch(request.ChatMessage.Message))
-                {
-                    var regexMatch = MatchRegex().Match(request.ChatMessage.Message);
+        // if (request.ChatMessage.Message.StartsWith("!match", StringComparison.CurrentCultureIgnoreCase))
+        // {
+        //     try
+        //     {
+        //         if (MatchRegex().IsMatch(request.ChatMessage.Message))
+        //         {
+        //             var regexMatch = MatchRegex().Match(request.ChatMessage.Message);
 
-                    // Find the match stats
-                    var matchId = regexMatch.Groups[1].Value;
-                    var mainParticipantName = regexMatch.Groups[2].Value;
-                    var match = await pubgApiClient.GetMatch(matchId, cancellationToken);
+        //             // Find the match stats
+        //             var matchId = regexMatch.Groups[1].Value;
+        //             var mainParticipantName = regexMatch.Groups[2].Value;
+        //             var match = await pubgApiClient.GetMatch(matchId, cancellationToken);
 
-                    // Save the match
-                    await pubgStorageClient.SaveMatch(matchId, match, cancellationToken);
+        //             // Save the match
+        //             await pubgStorageClient.SaveMatch(matchId, match, cancellationToken);
 
-                    var additionalPrompt = regexMatch.Groups[3].Value;
+        //             var additionalPrompt = regexMatch.Groups[3].Value;
 
-                    var response = await aiPubgAIClient.GetPubgCompletion(additionalPrompt, match, mainParticipantName);
+        //             var response = await aiPubgAIClient.GetPubgCompletion(additionalPrompt, match, mainParticipantName);
 
-                    await chatService.SendReply(request.ChatMessage.Channel, request.ChatMessage.Id, response, cancellationToken);
-                }
-                else
-                {
-                    await chatService.SendReply(request.ChatMessage.Channel, request.ChatMessage.Id, "Didn't understand that !match command", cancellationToken);
-                }
-            }
-            catch (System.Exception ex)
-            {
-                logger.LogError(ex, "Error when processing !match command");
-            }
+        //             await chatService.SendReply(request.ChatMessage.Channel, request.ChatMessage.Id, response, cancellationToken);
+        //         }
+        //         else
+        //         {
+        //             await chatService.SendReply(request.ChatMessage.Channel, request.ChatMessage.Id, "Didn't understand that !match command", cancellationToken);
+        //         }
+        //     }
+        //     catch (System.Exception ex)
+        //     {
+        //         logger.LogError(ex, "Error when processing !match command");
+        //     }
 
-            return;
-        }
+        //     return;
+        // }
 
         messages.Enqueue(new HistoryMessage(request.ChatMessage.Channel, request.ChatMessage.Username, request.ChatMessage.Message, DateTime.Now));
         logger.LogTrace("Messages: {Messages}", string.Join(", ", messages));

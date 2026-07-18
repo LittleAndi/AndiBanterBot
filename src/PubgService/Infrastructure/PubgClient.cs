@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Application.Infrastructure.Pubg.Models;
+using Microsoft.Extensions.Options;
 
 namespace Application.Infrastructure.Pubg;
 
