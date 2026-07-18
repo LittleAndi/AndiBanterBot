@@ -1,0 +1,86 @@
+@using Web.Components.Services
+
+<div class="status-band status-band--@StateClass">
+    <span class="status-dot" aria-hidden="true">
+        <svg viewBox="0 0 16 16">
+            <circle cx="8" cy="8" r="8" />
+        </svg>
+    </span>
+
+    <div class="status-text">
+        @if (Loading)
+        {
+            <span class="status-headline skeleton">Checking status…</span>
+        }
+        else if (Status is null)
+        {
+            <span class="status-headline">Can't reach the Twitch service</span>
+            <span class="status-detail">The dashboard couldn't load bot status. It might still be starting up.</span>
+        }
+        else if (NeverLoggedIn)
+        {
+            <span class="status-headline">Not set up yet</span>
+            <span class="status-detail">Log in with the bot and broadcaster accounts below to get started.</span>
+        }
+        else if (NeedsAttention)
+        {
+            <span class="status-headline">Needs attention</span>
+            <span class="status-detail">@AttentionReason</span>
+        }
+        else
+        {
+            <span class="status-headline">Bot's online</span>
+            <span class="status-detail">
+                Connected to EventSub
+                @if (Status.LastMessageAtUtc is not null)
+                {
+                    <text> · last message <time class="mono">@Status.LastMessageAtUtc.Value.ToLocalTime().ToString("t")</time></text>
+                }
+            </span>
+        }
+    </div>
+
+    @if (!Loading && Status is null)
+    {
+        <button class="status-retry" @onclick="OnRetry" disabled="@Refreshing">@(Refreshing ? "Retrying…" : "Retry")</button>
+    }
+</div>
+
+@code {
+    [Parameter] public AuthStatusResponse? Status { get; set; }
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public bool Refreshing { get; set; }
+    [Parameter] public EventCallback OnRetry { get; set; }
+
+    private bool NeverLoggedIn => Status is { Bot: null, Broadcaster: null };
+
+    private bool NeedsAttention =>
+        Status is not null && !NeverLoggedIn &&
+        (!Status.WebSocketConnected
+            || Status.Bot is null or { NeedsLogin: true }
+            || Status.Broadcaster is null or { NeedsLogin: true });
+
+    private string AttentionReason
+    {
+        get
+        {
+            if (Status is null) return string.Empty;
+            if (!Status.WebSocketConnected) return "The EventSub connection is down.";
+            if (Status.Bot is null or { NeedsLogin: true }) return "The bot account needs to log in again.";
+            if (Status.Broadcaster is null or { NeedsLogin: true }) return "The broadcaster account needs to log in again.";
+            return string.Empty;
+        }
+    }
+
+    private string StateClass
+    {
+        get
+        {
+            if (Loading) return "loading";
+            if (Status is null) return "unreachable";
+            if (NeverLoggedIn) return "fresh";
+            if (NeedsAttention) return "attention";
+            return "healthy";
+        }
+    }
+}

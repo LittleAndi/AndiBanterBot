@@ -1,0 +1,87 @@
+.chat-send {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: var(--space-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    height: 100%;
+}
+
+.chat-send-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0;
+}
+
+.chat-send-row {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+.chat-send-input {
+    flex: 1;
+    min-width: 0;
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: var(--space-sm) var(--space-md);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    transition: border-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.chat-send-input::placeholder {
+    color: var(--color-muted);
+}
+
+.chat-send-input:focus-visible,
+.chat-send-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.chat-send-button {
+    flex: none;
+    background-color: var(--color-primary);
+    color: var(--color-primary-ink);
+    border: none;
+    border-radius: 6px;
+    padding: var(--space-sm) var(--space-lg);
+    font-size: var(--text-base);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color var(--duration-fast) var(--ease-out-quart), opacity var(--duration-fast) var(--ease-out-quart);
+}
+
+.chat-send-button:hover:not(:disabled) {
+    background-color: color-mix(in oklch, var(--color-primary) 85%, white);
+}
+
+.chat-send-button:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+.chat-send-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.chat-send-feedback {
+    font-size: var(--text-sm);
+    margin: 0;
+}
+
+.chat-send-feedback--ok {
+    color: var(--color-primary);
+}
+
+.chat-send-feedback--error {
+    color: var(--color-accent);
+}

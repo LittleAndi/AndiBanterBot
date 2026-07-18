@@ -1,0 +1,46 @@
+@using Web.Components.Services
+@inject TwitchApiClient TwitchApiClient
+
+<div class="chat-send">
+    <h2 class="chat-send-title">Send to chat</h2>
+    <div class="chat-send-row">
+        <input class="chat-send-input" @bind="chatMessage" @bind:event="oninput"
+               placeholder="Message to the channel"
+               @onkeyup="@(e => e.Key == "Enter" ? SendChat() : Task.CompletedTask)" />
+        <button class="chat-send-button" @onclick="SendChat" disabled="@(sending || string.IsNullOrWhiteSpace(chatMessage))">
+            @(sending ? "Sending…" : "Send")
+        </button>
+    </div>
+    @if (sendFeedback is not null)
+    {
+        <p class="chat-send-feedback @(sendSucceeded ? "chat-send-feedback--ok" : "chat-send-feedback--error")">@sendFeedback</p>
+    }
+</div>
+
+@code {
+    private string chatMessage = string.Empty;
+    private bool sending;
+    private bool sendSucceeded;
+    private string? sendFeedback;
+
+    private async Task SendChat()
+    {
+        if (sending || string.IsNullOrWhiteSpace(chatMessage)) return;
+
+        sending = true;
+        try
+        {
+            var result = await TwitchApiClient.SendChatMessage(chatMessage);
+            sendSucceeded = result.Sent;
+            sendFeedback = result.Sent ? "Message sent." : result.DropReason ?? "Message was not sent.";
+            if (result.Sent)
+            {
+                chatMessage = string.Empty;
+            }
+        }
+        finally
+        {
+            sending = false;
+        }
+    }
+}
