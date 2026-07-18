@@ -11,66 +11,75 @@ public class TwitchWebSocketService(
     IHttpClientFactory httpClientFactory,
     IConfiguration configuration,
     ITwitchTokenStore tokenStore,
-    // IHostApplicationLifetime hostApplicationLifetime,
+    IHostApplicationLifetime hostApplicationLifetime,
     ILogger<TwitchWebSocketService> logger) : ITwitchWebSocketService
 {
     private readonly HttpClient twitchHttpClientAppAccess = httpClientFactory.CreateClient("TwitchClientAppAccess");
     private readonly HttpClient twitchHttpClientUserAccess = httpClientFactory.CreateClient("TwitchClientUserAccess");
     private readonly string broadcasterUsername = configuration["Twitch:BroadcasterUsername"] ?? throw new InvalidOperationException("BroadcasterUsername not configured");
     private readonly string monitoredUsername = configuration["Twitch:MonitoredUsername"] ?? throw new InvalidOperationException("MonitoredUsername not configured");
+    private readonly SemaphoreSlim startGate = new(1, 1);
     private string? broadcasterId;
     private string? userId;
     private bool connectingOrConnected = false;
+    private bool handlersAttached = false;
     private string sessionId = string.Empty;
+
     public async Task Start(CancellationToken cancellationToken = default)
     {
-        // Just block this if we think we're already connected
-        if (connectingOrConnected) return;
-
+        await startGate.WaitAsync(cancellationToken);
         try
         {
-            connectingOrConnected = true;
+            if (connectingOrConnected) return;
 
             // Get user IDs before starting
             await InitializeUserIds(cancellationToken);
 
-            // Add event handlers
-            webSocketClient.OnWelcomeReceived += async (sender, e) => await HandleWelcomeMessage(sender, e, cancellationToken).ConfigureAwait(false);
-            webSocketClient.OnMessageReceived += async (sender, e) => await HandleMessageReceived(sender, e).ConfigureAwait(false);
-            webSocketClient.OnCloseReceived += HandleCloseMessage;
+            if (!handlersAttached)
+            {
+                // Subscriptions created from the welcome message must survive the caller's
+                // request, so they are tied to application shutdown instead
+                var stoppingToken = hostApplicationLifetime.ApplicationStopping;
+                webSocketClient.OnWelcomeReceived += async (sender, e) => await HandleWelcomeMessage(sender, e, stoppingToken).ConfigureAwait(false);
+                webSocketClient.OnMessageReceived += async (sender, e) => await HandleMessageReceived(sender, e).ConfigureAwait(false);
+                webSocketClient.OnCloseReceived += HandleCloseMessage;
+                handlersAttached = true;
+            }
 
             await webSocketClient.ConnectAsync("wss://eventsub.wss.twitch.tv/ws?keepalive_timeout_seconds=60", cancellationToken);
+            connectingOrConnected = true;
 
-            // Keep the service running
+            _ = ReceiveLoopAsync(hostApplicationLifetime.ApplicationStopping);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Error starting TwitchWebSocketService");
+            connectingOrConnected = false;
+            throw;
+        }
+        finally
+        {
+            startGate.Release();
+        }
+    }
+
+    private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
             await webSocketClient.ReceiveMessagesAsync(cancellationToken);
-
-            try
-            {
-                while (!cancellationToken.IsCancellationRequested)
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
-                    logger.LogInformation("WebSocket client is still connected");
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                logger.LogInformation("Service is shutting down");
-            }
         }
-        catch (OperationCanceledException)
+        finally
         {
-            logger.LogInformation("Service is shutting down");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error in TwitchWebSocketService");
+            connectingOrConnected = false;
+            sessionId = string.Empty;
+            logger.LogWarning("EventSub receive loop ended, a new Start call is required to reconnect");
         }
     }
 
     private void HandleCloseMessage(object? sender, EventArgs e)
     {
-        logger.LogWarning("WebSocket connection closed. Initiating graceful shutdown.");
-        // hostApplicationLifetime.StopApplication();
+        logger.LogWarning("WebSocket connection closed");
     }
 
     private async Task InitializeUserIds(CancellationToken cancellationToken)

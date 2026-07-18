@@ -27,6 +27,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IWebSocketClient, WebSocketClient>();
         services.AddSingleton<ITwitchWebSocketService, TwitchWebSocketService>();
+        services.AddHostedService<TwitchEventSubStartupService>();
 
         return services;
     }
