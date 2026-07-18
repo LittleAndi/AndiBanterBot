@@ -52,9 +52,10 @@ public class WebsocketService : IWebsocketService
         this.eventSubWebsocketClient.ChannelGoalEnd += OnChannelGoalEnd;
         this.eventSubWebsocketClient.ChannelGoalProgress += OnChannelGoalProgress;
         this.eventSubWebsocketClient.ChannelGuestStarGuestUpdate += OnChannelGuestStarGuestUpdate;
-        this.eventSubWebsocketClient.ChannelGuestStarSessionBegin += OnChannelGuestStarSessionBegin;
-        this.eventSubWebsocketClient.ChannelGuestStarSessionEnd += OnChannelGuestStarSessionEnd;
+        // this.eventSubWebsocketClient.ChannelGuestStarSessionBegin += OnChannelGuestStarSessionBegin;
+        // this.eventSubWebsocketClient.ChannelGuestStarSessionEnd += OnChannelGuestStarSessionEnd;
         this.eventSubWebsocketClient.ChannelGuestStarSettingsUpdate += OnChannelGuestStarSettingsUpdate;
+        // this.eventSubWebsocketClient.ChannelGuestStarSlotUpdate += OnChannelGuestStarSlotUpdate;
         this.eventSubWebsocketClient.ChannelHypeTrainBeginV2 += OnChannelHypeTrainBegin;
         this.eventSubWebsocketClient.ChannelHypeTrainEndV2 += OnChannelHypeTrainEnd;
         this.eventSubWebsocketClient.ChannelModeratorAdd += OnChannelModeratorAdd;
@@ -91,7 +92,7 @@ public class WebsocketService : IWebsocketService
         this.eventSubWebsocketClient.ChannelWarningSend += OnChannelWarningSend;
     }
 
-    private async Task OnChannelAdBreakBegin(object sender, ChannelAdBreakBeginArgs args)
+    private async Task OnChannelAdBreakBegin(object? sender, ChannelAdBreakBeginArgs args)
     {
         var adDurationSeconds = args.Payload.Event.DurationSeconds;
         var broadcasterUserId = args.Payload.Event.BroadcasterUserLogin;
@@ -108,33 +109,33 @@ public class WebsocketService : IWebsocketService
         await mediator.Send(processInstructionCommand);
     }
 
-    private Task OnChannelBan(object sender, ChannelBanArgs args)
+    private Task OnChannelBan(object? sender, ChannelBanArgs args)
     {
-        logger.LogDebug("OnChannelBan: {@ChannelBanArgs}", args);
+        logger.LogDebug("OnChannelBan: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelCharityCampaignDonate(object sender, ChannelCharityCampaignDonateArgs args)
+    private Task OnChannelCharityCampaignDonate(object? sender, ChannelCharityCampaignDonateArgs args)
     {
-        logger.LogDebug("OnChannelCharityCampaignDonate: {@ChannelCharityCampaignDonateArgs}", args);
+        logger.LogDebug("OnChannelCharityCampaignDonate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelCharityCampaignProgress(object sender, ChannelCharityCampaignProgressArgs args)
+    private Task OnChannelCharityCampaignProgress(object? sender, ChannelCharityCampaignProgressArgs args)
     {
-        logger.LogDebug("OnChannelCharityCampaignProgress: {@ChannelCharityCampaignProgressArgs}", args);
+        logger.LogDebug("OnChannelCharityCampaignProgress: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelCharityCampaignStart(object sender, ChannelCharityCampaignStartArgs args)
+    private Task OnChannelCharityCampaignStart(object? sender, ChannelCharityCampaignStartArgs args)
     {
-        logger.LogDebug("OnChannelCharityCampaignStart: {@ChannelCharityCampaignStartArgs}", args);
+        logger.LogDebug("OnChannelCharityCampaignStart: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelCheer(object sender, ChannelCheerArgs args)
+    private Task OnChannelCheer(object? sender, ChannelCheerArgs args)
     {
-        logger.LogDebug("OnChannelCheer: {@ChannelCheerArgs}", args);
+        logger.LogDebug("OnChannelCheer: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
@@ -149,184 +150,184 @@ public class WebsocketService : IWebsocketService
         await mediator.Send(processInstructionCommand);
     }
 
-    private Task OnChannelGoalBegin(object sender, ChannelGoalBeginArgs args)
+    private Task OnChannelGoalBegin(object? sender, ChannelGoalBeginArgs args)
     {
-        logger.LogDebug("OnChannelGoalBegin: {@ChannelGoalBeginArgs}", args);
+        logger.LogDebug("OnChannelUpdate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelGoalEnd(object sender, ChannelGoalEndArgs args)
+    private Task OnChannelGoalEnd(object? sender, ChannelGoalEndArgs args)
     {
-        logger.LogDebug("OnChannelGoalEnd: {@ChannelGoalEndArgs}", args);
+        logger.LogDebug("OnChannelUpdate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelGoalProgress(object sender, ChannelGoalProgressArgs args)
+    private Task OnChannelGoalProgress(object? sender, ChannelGoalProgressArgs args)
     {
-        logger.LogDebug("OnChannelGoalProgress: {@ChannelGoalProgressArgs}", args);
+        logger.LogDebug("OnChannelUpdate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelGuestStarGuestUpdate(object sender, ChannelGuestStarGuestUpdateArgs args)
+    private Task OnChannelGuestStarGuestUpdate(object? sender, ChannelGuestStarGuestUpdateArgs args)
     {
-        logger.LogDebug("OnChannelGuestStarGuestUpdate: {@ChannelGuestStarGuestUpdateArgs}", args);
+        logger.LogDebug("OnChannelUpdate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelGuestStarSessionBegin(object sender, ChannelGuestStarSessionBeginArgs args)
+    private Task OnChannelGuestStarSessionBegin(object? sender, ChannelGuestStarSessionBegin args)
     {
-        logger.LogDebug("OnChannelGuestStarSessionBegin: {@ChannelGuestStarSessionBeginArgs}", args);
+        logger.LogDebug("OnChannelUpdate: {@ChannelGuestStarSessionBegin}", args);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelGuestStarSessionEnd(object sender, ChannelGuestStarSessionEndArgs args)
+    private Task OnChannelGuestStarSessionEnd(object? sender, ChannelGuestStarSessionEnd args)
     {
-        logger.LogDebug("OnChannelGuestStarSessionEnd: {@ChannelGuestStarSessionEndArgs}", args);
+        logger.LogDebug("OnChannelUpdate: {@ChannelGuestStarSessionEnd}", args);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelGuestStarSettingsUpdate(object sender, ChannelGuestStarSettingsUpdateArgs args)
+    private Task OnChannelGuestStarSettingsUpdate(object? sender, ChannelGuestStarSettingsUpdateArgs args)
     {
-        logger.LogDebug("OnChannelUpdate: {@ChannelGuestStarSettingsUpdateArgs}", args);
+        logger.LogDebug("OnChannelUpdate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelHypeTrainBegin(object sender, ChannelHypeTrainBeginV2Args args)
+    private Task OnChannelHypeTrainBegin(object? sender, ChannelHypeTrainBeginV2Args args)
     {
-        logger.LogDebug("OnChannelHypeTrainBegin: {@ChannelHypeTrainBeginV2Args}", args);
+        logger.LogDebug("OnChannelUpdate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelHypeTrainEnd(object sender, ChannelHypeTrainEndV2Args args)
+    private Task OnChannelHypeTrainEnd(object? sender, ChannelHypeTrainEndV2Args args)
     {
-        logger.LogDebug("OnChannelHypeTrainEnd: {@ChannelHypeTrainEndV2Args}", args);
+        logger.LogDebug("OnChannelUpdate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelModeratorAdd(object sender, ChannelModeratorArgs args)
+    private Task OnChannelModeratorAdd(object? sender, ChannelModeratorArgs args)
     {
-        logger.LogDebug("OnChannelModeratorAdd: {@ChannelModeratorArgs}", args);
+        logger.LogDebug("OnChannelUpdate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelModeratorRemove(object sender, ChannelModeratorArgs args)
+    private Task OnChannelModeratorRemove(object? sender, ChannelModeratorArgs args)
     {
-        logger.LogDebug("OnChannelModeratorRemove: {@ChannelModeratorArgs}", args);
+        logger.LogDebug("OnChannelUpdate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelPointsAutomaticRewardRedemption(object sender, ChannelPointsAutomaticRewardRedemptionArgs args)
+    private Task OnChannelPointsAutomaticRewardRedemption(object? sender, ChannelPointsAutomaticRewardRedemptionArgs args)
     {
-        logger.LogDebug("OnChannelPointsAutomaticRewardRedemption: {@ChannelPointsAutomaticRewardRedemptionArgs}", args);
+        logger.LogDebug("OnChannelUpdate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelPointsCustomRewardAdd(object sender, ChannelPointsCustomRewardArgs args)
+    private Task OnChannelPointsCustomRewardAdd(object? sender, ChannelPointsCustomRewardArgs args)
     {
-        logger.LogDebug("OnChannelPointsCustomRewardAdd: {@ChannelPointsCustomRewardArgs}", args);
+        logger.LogDebug("OnChannelUpdate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelPointsCustomRewardRedemption(object sender, ChannelPointsCustomRewardRedemptionArgs args)
+    private Task OnChannelPointsCustomRewardRedemption(object? sender, ChannelPointsCustomRewardRedemptionArgs args)
     {
-        logger.LogDebug("OnChannelPointsCustomRewardRedemption: {@ChannelPointsCustomRewardRedemptionArgs}", args);
+        logger.LogDebug("OnChannelPointsCustomRewardRedemption: {@Payload}", args.Payload);
         var command = new ProcessRewardRedeemCommand(args.Payload.Event.Reward, args.Payload.Event.UserInput);
         mediator.Send(command);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelPointsCustomRewardRedemptionUpdate(object sender, ChannelPointsCustomRewardRedemptionArgs args)
+    private Task OnChannelPointsCustomRewardRedemptionUpdate(object? sender, ChannelPointsCustomRewardRedemptionArgs args)
     {
-        logger.LogDebug("OnChannelPointsCustomRewardRedemptionUpdate: {@ChannelPointsCustomRewardRedemptionArgs}", args);
+        logger.LogDebug("OnChannelPointsCustomRewardRedemptionUpdate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelPointsCustomRewardRemove(object sender, ChannelPointsCustomRewardArgs args)
+    private Task OnChannelPointsCustomRewardRemove(object? sender, ChannelPointsCustomRewardArgs args)
     {
-        logger.LogDebug("OnChannelPointsCustomRewardRemove: {@ChannelPointsCustomRewardArgs}", args);
+        logger.LogDebug("OnChannelPointsCustomRewardRemove: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelPointsCustomRewardUpdate(object sender, ChannelPointsCustomRewardArgs args)
+    private Task OnChannelPointsCustomRewardUpdate(object? sender, ChannelPointsCustomRewardArgs args)
     {
-        logger.LogDebug("OnChannelPointsCustomRewardUpdate: {@ChannelPointsCustomRewardArgs}", args);
+        logger.LogDebug("OnChannelPointsCustomRewardUpdate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelPollBegin(object sender, ChannelPollBeginArgs args)
+    private Task OnChannelPollBegin(object? sender, ChannelPollBeginArgs args)
     {
-        logger.LogDebug("OnChannelPollBegin: {@ChannelPollBeginArgs}", args);
+        logger.LogDebug("OnChannelPollBegin: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelPollEnd(object sender, ChannelPollEndArgs args)
+    private Task OnChannelPollEnd(object? sender, ChannelPollEndArgs args)
     {
-        logger.LogDebug("OnChannelPollEnd: {@ChannelPollEndArgs}", args);
+        logger.LogDebug("OnChannelPollEnd: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelPollProgress(object sender, ChannelPollProgressArgs args)
+    private Task OnChannelPollProgress(object? sender, ChannelPollProgressArgs args)
     {
-        logger.LogDebug("OnChannelPollProgress: {@ChannelPollProgressArgs}", args);
+        logger.LogDebug("OnChannelPollProgress: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelPredictionBegin(object sender, ChannelPredictionBeginArgs args)
+    private Task OnChannelPredictionBegin(object? sender, ChannelPredictionBeginArgs args)
     {
-        logger.LogDebug("OnChannelPredictionBegin: {@ChannelPredictionBeginArgs}", args);
+        logger.LogDebug("OnChannelPredictionBegin: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelPredictionEnd(object sender, ChannelPredictionEndArgs args)
+    private Task OnChannelPredictionEnd(object? sender, ChannelPredictionEndArgs args)
     {
-        logger.LogDebug("OnChannelPredictionEnd: {@ChannelPredictionEndArgs}", args);
+        logger.LogDebug("OnChannelPredictionEnd: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelPredictionLock(object sender, ChannelPredictionLockArgs args)
+    private Task OnChannelPredictionLock(object? sender, ChannelPredictionLockArgs args)
     {
-        logger.LogDebug("OnChannelPredictionLock: {@ChannelPredictionLockArgs}", args);
+        logger.LogDebug("OnChannelPredictionLock: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelPredictionProgress(object sender, ChannelPredictionProgressArgs args)
+    private Task OnChannelPredictionProgress(object? sender, ChannelPredictionProgressArgs args)
     {
-        logger.LogDebug("OnChannelPredictionProgress: {@ChannelPredictionProgressArgs}", args);
+        logger.LogDebug("OnChannelPredictionProgress: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelRaid(object sender, ChannelRaidArgs args)
+    private Task OnChannelRaid(object? sender, ChannelRaidArgs args)
     {
-        logger.LogDebug("OnChannelRaid: {@ChannelRaidArgs}", args);
+        logger.LogDebug("OnChannelRaid: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelShieldModeBegin(object sender, ChannelShieldModeBeginArgs args)
+    private Task OnChannelShieldModeBegin(object? sender, ChannelShieldModeBeginArgs args)
     {
-        logger.LogDebug("OnChannelShieldModeBegin: {@ChannelShieldModeBeginArgs}", args);
+        logger.LogDebug("OnChannelShieldModeBegin: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelShieldModeEnd(object sender, ChannelShieldModeEndArgs args)
+    private Task OnChannelShieldModeEnd(object? sender, ChannelShieldModeEndArgs args)
     {
-        logger.LogDebug("OnChannelShieldModeEnd: {@ChannelShieldModeEndArgs}", args);
+        logger.LogDebug("OnChannelShieldModeEnd: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelShoutoutCreate(object sender, ChannelShoutoutCreateArgs args)
+    private Task OnChannelShoutoutCreate(object? sender, ChannelShoutoutCreateArgs args)
     {
-        logger.LogDebug("OnChannelShoutoutCreate: {@ChannelShoutoutCreateArgs}", args);
+        logger.LogDebug("OnChannelShoutoutCreate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelShoutoutReceive(object sender, ChannelShoutoutReceiveArgs args)
+    private Task OnChannelShoutoutReceive(object? sender, ChannelShoutoutReceiveArgs args)
     {
-        logger.LogDebug("OnChannelShoutoutReceive: {@ChannelShoutoutReceiveArgs}", args);
+        logger.LogDebug("OnChannelShoutoutReceive: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
     // The channel.subscribe subscription type sends a notification when a specified channel receives a subscriber. This does not include resubscribes.
-    private async Task OnChannelSubscribe(object sender, ChannelSubscribeArgs args)
+    private async Task OnChannelSubscribe(object? sender, ChannelSubscribeArgs args)
     {
         var userName = args.Payload.Event.BroadcasterUserName;
         var isGift = args.Payload.Event.IsGift;
@@ -343,19 +344,19 @@ public class WebsocketService : IWebsocketService
         await mediator.Send(processInstructionCommand);
     }
 
-    private Task OnChannelSubscriptionEnd(object sender, ChannelSubscriptionEndArgs args)
+    private Task OnChannelSubscriptionEnd(object? sender, ChannelSubscriptionEndArgs args)
     {
-        logger.LogDebug("OnChannelSubscriptionEnd: {@ChannelSubscriptionEndArgs}", args);
+        logger.LogDebug("OnChannelSubscriptionEnd: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelSubscriptionGift(object sender, ChannelSubscriptionGiftArgs args)
+    private Task OnChannelSubscriptionGift(object? sender, ChannelSubscriptionGiftArgs args)
     {
-        logger.LogDebug("OnChannelSubscriptionGift: {@ChannelSubscriptionGiftArgs}", args);
+        logger.LogDebug("OnChannelSubscriptionGift: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private async Task OnChannelSubscriptionMessage(object sender, ChannelSubscriptionMessageArgs args)
+    private async Task OnChannelSubscriptionMessage(object? sender, ChannelSubscriptionMessageArgs args)
     {
         var userName = args.Payload.Event.BroadcasterUserName;
         var cumulativeMonths = args.Payload.Event.CumulativeMonths;
@@ -372,31 +373,31 @@ public class WebsocketService : IWebsocketService
         await mediator.Send(processInstructionCommand);
     }
 
-    private Task OnChannelSuspiciousUserMessage(object sender, ChannelSuspiciousUserMessageArgs args)
+    private Task OnChannelSuspiciousUserMessage(object? sender, ChannelSuspiciousUserMessageArgs args)
     {
-        logger.LogDebug("OnChannelSuspiciousUserMessage: {@ChannelSuspiciousUserMessageArgs}", args);
+        logger.LogDebug("OnChannelSuspiciousUserMessage: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelSuspiciousUserUpdate(object sender, ChannelSuspiciousUserUpdateArgs args)
+    private Task OnChannelSuspiciousUserUpdate(object? sender, ChannelSuspiciousUserUpdateArgs args)
     {
-        logger.LogDebug("OnChannelSuspiciousUserUpdate: {@ChannelSuspiciousUserUpdateArgs}", args);
+        logger.LogDebug("OnChannelSuspiciousUserUpdate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelUnban(object sender, ChannelUnbanArgs args)
+    private Task OnChannelUnban(object? sender, ChannelUnbanArgs args)
     {
-        logger.LogDebug("OnChannelUnban: {@ChannelUnbanArgs}", args);
+        logger.LogDebug("OnChannelUnban: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelUpdate(object sender, ChannelUpdateArgs args)
+    private Task OnChannelUpdate(object? sender, ChannelUpdateArgs args)
     {
-        logger.LogDebug("OnChannelUpdate: {@ChannelUpdateArgs}", args);
+        logger.LogDebug("OnChannelUpdate: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private async Task OnChannelVipAdd(object sender, ChannelVipArgs args)
+    private async Task OnChannelVipAdd(object? sender, ChannelVipArgs args)
     {
         logger.LogInformation("WebSocket ChannelVipAdd");
 
@@ -407,25 +408,25 @@ public class WebsocketService : IWebsocketService
         await mediator.Send(processInstructionCommand);
     }
 
-    private Task OnChannelWarningAcknowledge(object sender, ChannelWarningAcknowledgeArgs args)
+    private Task OnChannelWarningAcknowledge(object? sender, ChannelWarningAcknowledgeArgs args)
     {
-        logger.LogDebug("OnChannelWarningAcknowledge: {@ChannelWarningAcknowledgeArgs}", args);
+        logger.LogDebug("OnChannelWarningAcknowledge: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelWarningSend(object sender, ChannelWarningSendArgs args)
+    private Task OnChannelWarningSend(object? sender, ChannelWarningSendArgs args)
     {
-        logger.LogDebug("OnChannelWarningSend: {@ChannelWarningSendArgs}", args);
+        logger.LogDebug("OnChannelWarningSend: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnChannelChatMessage(object sender, ChannelChatMessageArgs args)
+    private Task OnChannelChatMessage(object? sender, ChannelChatMessageArgs args)
     {
-        logger.LogDebug("OnChannelChatMessage: {@ChannelChatMessageArgs}", args);
+        logger.LogDebug("OnChannelChatMessage: {@Payload}", args.Payload);
         return Task.CompletedTask;
     }
 
-    private Task OnStreamOnline(object sender, StreamOnlineArgs args)
+    private Task OnStreamOnline(object? sender, StreamOnlineArgs args)
     {
         var userId = args.Payload.Event.BroadcasterUserId;
         var userName = args.Payload.Event.BroadcasterUserName;
@@ -434,7 +435,7 @@ public class WebsocketService : IWebsocketService
         return Task.CompletedTask;
     }
 
-    private Task OnStreamOffline(object sender, StreamOfflineArgs args)
+    private Task OnStreamOffline(object? sender, StreamOfflineArgs args)
     {
         var userId = args.Payload.Event.BroadcasterUserId;
         var userName = args.Payload.Event.BroadcasterUserName;
@@ -443,7 +444,7 @@ public class WebsocketService : IWebsocketService
         return Task.CompletedTask;
     }
 
-    private Task OnChannelVipRemove(object sender, ChannelVipArgs args)
+    private Task OnChannelVipRemove(object? sender, ChannelVipArgs args)
     {
         logger.LogInformation("WebSocket ChannelVipRemove");
         return Task.CompletedTask;
