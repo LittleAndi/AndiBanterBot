@@ -12,7 +12,7 @@ public interface IWebSocketClient : IDisposable
 
 public class WebSocketClient(ILogger<WebSocketClient> logger) : IWebSocketClient
 {
-    private readonly ClientWebSocket _webSocket = new();
+    private ClientWebSocket _webSocket = new();
     private const int ReceiveBufferSize = 8192;
     private bool _disposed;
 
@@ -25,15 +25,22 @@ public class WebSocketClient(ILogger<WebSocketClient> logger) : IWebSocketClient
         ThrowIfDisposed();
 
         // Check if we're already running
-        if (_webSocket.State is WebSocketState.None or WebSocketState.Closed)
+        if (_webSocket.State is WebSocketState.Open or WebSocketState.Connecting)
         {
-            logger.LogInformation("Connecting to WebSocket at {Url}", url);
-            await _webSocket.ConnectAsync(new Uri(url), cancellationToken);
-            logger.LogInformation("WebSocket connected successfully");
-            return true;
+            return false;
         }
 
-        return false;
+        // ClientWebSocket instances are single-use, so any previously used socket must be replaced
+        if (_webSocket.State is not WebSocketState.None)
+        {
+            _webSocket.Dispose();
+            _webSocket = new ClientWebSocket();
+        }
+
+        logger.LogInformation("Connecting to WebSocket at {Url}", url);
+        await _webSocket.ConnectAsync(new Uri(url), cancellationToken);
+        logger.LogInformation("WebSocket connected successfully");
+        return true;
     }
 
     public async Task ReceiveMessagesAsync(CancellationToken cancellationToken = default)

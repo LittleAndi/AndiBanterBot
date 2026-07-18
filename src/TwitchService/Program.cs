@@ -32,8 +32,16 @@ app.MapPost("auth/callback", async (
         return Results.Problem(ex.Message, statusCode: StatusCodes.Status502BadGateway);
     }
 
-    // No-op if the websocket is already connecting or connected
-    _ = Task.Run(() => twitchWebSocketService.Start());
+    // Connects and returns; no-op if the websocket is already connecting or connected
+    try
+    {
+        await twitchWebSocketService.Start();
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Token stored, but starting the EventSub websocket failed");
+        return Results.Problem("Token stored, but starting the EventSub websocket failed", statusCode: StatusCodes.Status502BadGateway);
+    }
 
     if (info.Role == TwitchUserRole.Broadcaster)
     {
