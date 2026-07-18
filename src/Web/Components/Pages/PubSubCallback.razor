@@ -53,7 +53,8 @@ else
             return Task.CompletedTask;
         }
 
-        _ = Task.Run(() => TwitchApiClient.SubscribeToBroadcasterSubscriptions(code, scopes));
+        var redirectUri = NavigationManager.BaseUri + "pubsubcallback";
+        _ = Task.Run(() => TwitchApiClient.SendAuthCode(code, scopes, redirectUri));
 
         NavigationManager.NavigateTo("/broadcaster/status");
 

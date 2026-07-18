@@ -64,7 +64,8 @@ else
 
         codeAquired = true;
 
-        _ = Task.Run(() => TwitchApiClient.StartEventSub(token, scopes));
+        var redirectUri = NavigationManager.BaseUri + "callback";
+        _ = Task.Run(() => TwitchApiClient.SendAuthCode(token, scopes, redirectUri));
 
         //NavigationManager.NavigateTo("/");
 

@@ -4,16 +4,11 @@ public class TwitchApiClient(IHttpClientFactory httpClientFactory)
 {
     private readonly HttpClient httpClient = httpClientFactory.CreateClient("twitch");
 
-    public async Task StartEventSub(string code, string scopes)
+    public async Task<bool> SendAuthCode(string code, string scopes, string redirectUri)
     {
-        await httpClient.PostAsJsonAsync("start-eventsub", new EventSubStartRequest(code, scopes));
-    }
-
-    public async Task SubscribeToBroadcasterSubscriptions(string code, string scopes)
-    {
-        await httpClient.PostAsJsonAsync("broadcaster-subscriptions", new BroadcasterSubscriptionsRequest(code, scopes));
+        var response = await httpClient.PostAsJsonAsync("auth/callback", new AuthCallbackRequest(code, scopes, redirectUri));
+        return response.IsSuccessStatusCode;
     }
 }
 
-public record EventSubStartRequest(string Code, string Scopes);
-public record BroadcasterSubscriptionsRequest(string Code, string Scopes);
+public record AuthCallbackRequest(string Code, string Scopes, string RedirectUri);

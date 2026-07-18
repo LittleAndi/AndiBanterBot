@@ -16,19 +16,36 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapPost("start-eventsub", async (EventSubStartRequest startRequest, ITwitchWebSocketService twitchWebSocketService) =>
+app.MapPost("auth/callback", async (
+    AuthCallbackRequest request,
+    ITwitchTokenStore tokenStore,
+    ITwitchWebSocketService twitchWebSocketService,
+    ILogger<Program> logger) =>
 {
-    await twitchWebSocketService.Start();
-});
+    TwitchTokenInfo info;
+    try
+    {
+        info = await tokenStore.ExchangeCodeAsync(request.Code, request.RedirectUri);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.Problem(ex.Message, statusCode: StatusCodes.Status502BadGateway);
+    }
 
-app.MapPost("broadcaster-subscriptions", async (BroadcasterSubscriptionsRequest request, ITwitchWebSocketService twitchWebSocketService) =>
-{
-    await twitchWebSocketService.Start();
-    await twitchWebSocketService.SubscribeToBroadcasterSubscriptions(request);
+    // No-op if the websocket is already connecting or connected
+    _ = Task.Run(() => twitchWebSocketService.Start());
+
+    if (info.Role == TwitchUserRole.Broadcaster)
+    {
+        await twitchWebSocketService.SubscribeToBroadcasterSubscriptions();
+    }
+
+    logger.LogInformation("Auth callback processed for {Login} as {Role}", info.Login, info.Role);
+    return Results.Ok(new AuthCallbackResponse(info.Role.ToString(), info.Login));
 });
 
 app.Run();
 
-public record EventSubStartRequest(string Code, string Scopes);
+public record AuthCallbackRequest(string Code, string Scopes, string RedirectUri);
 
-public record BroadcasterSubscriptionsRequest(string Code, string Scopes);
+public record AuthCallbackResponse(string Role, string Login);

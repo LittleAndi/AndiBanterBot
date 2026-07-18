@@ -2,5 +2,5 @@ namespace Application.Features.Twitch;
 
 public static class HttpRequestOptionKeys
 {
-    public static readonly HttpRequestOptionsKey<string> UserOAuthCode = new("UserOAuthCode");
+    public static readonly HttpRequestOptionsKey<TwitchUserRole> UserRole = new("TwitchUserRole");
 }

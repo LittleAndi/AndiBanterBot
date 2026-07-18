@@ -6,6 +6,12 @@ public static class DependencyInjection
     {
         services.AddTransient<TwitchAppAuthHandler>();
         services.AddTransient<TwitchUserAuthHandler>();
+        services.AddSingleton<ITwitchTokenStore, TwitchTokenStore>();
+
+        services.AddHttpClient("TwitchAuth", (configure) =>
+            {
+                configure.BaseAddress = new Uri("https://id.twitch.tv/oauth2/");
+            });
 
         services.AddHttpClient("TwitchClientAppAccess", (configure) =>
             {

@@ -3,13 +3,14 @@ namespace Application.Features.Twitch;
 public interface ITwitchWebSocketService
 {
     Task Start(CancellationToken cancellationToken = default);
-    Task SubscribeToBroadcasterSubscriptions(BroadcasterSubscriptionsRequest request, CancellationToken cancellationToken = default);
+    Task SubscribeToBroadcasterSubscriptions(CancellationToken cancellationToken = default);
 }
 
 public class TwitchWebSocketService(
     IWebSocketClient webSocketClient,
     IHttpClientFactory httpClientFactory,
     IConfiguration configuration,
+    ITwitchTokenStore tokenStore,
     // IHostApplicationLifetime hostApplicationLifetime,
     ILogger<TwitchWebSocketService> logger) : ITwitchWebSocketService
 {
@@ -19,7 +20,6 @@ public class TwitchWebSocketService(
     private readonly string monitoredUsername = configuration["Twitch:MonitoredUsername"] ?? throw new InvalidOperationException("MonitoredUsername not configured");
     private string? broadcasterId;
     private string? userId;
-    private string? eventSubOAuthCode;
     private bool connectingOrConnected = false;
     private string sessionId = string.Empty;
     public async Task Start(CancellationToken cancellationToken = default)
@@ -130,8 +130,23 @@ public class TwitchWebSocketService(
             return;
         }
 
-        await SubscribeToChannelChatMessages(eventSubOAuthCode!, sessionId, cancellationToken);
-        // await SubscribeToChannelPointsRedemption(sessionId: sessionId, cancellationToken);
+        if (tokenStore.HasToken(TwitchUserRole.Bot))
+        {
+            await SubscribeToChannelChatMessages(sessionId, cancellationToken);
+        }
+        else
+        {
+            logger.LogWarning("No bot token stored, skipping chat message subscription. Log in with the bot account to enable it.");
+        }
+
+        if (tokenStore.HasToken(TwitchUserRole.Broadcaster))
+        {
+            await SubscribeToChannelPointsRedemption(sessionId, cancellationToken);
+        }
+        else
+        {
+            logger.LogWarning("No broadcaster token stored, skipping channel points subscription. Log in with the broadcaster account to enable it.");
+        }
     }
 
     private async Task HandleMessageReceived(object? sender, TwitchMessageEventArgs e)
@@ -144,7 +159,7 @@ public class TwitchWebSocketService(
         }
     }
 
-    private async Task SubscribeToChannelChatMessages(string userOAuthCode, string? sessionId, CancellationToken cancellationToken)
+    private async Task SubscribeToChannelChatMessages(string? sessionId, CancellationToken cancellationToken)
     {
         try
         {
@@ -168,7 +183,7 @@ public class TwitchWebSocketService(
             {
                 Content = JsonContent.Create(subscriptionRequest)
             };
-            request.Options.Set(HttpRequestOptionKeys.UserOAuthCode, userOAuthCode);
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Bot);
             var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
 
@@ -188,7 +203,7 @@ public class TwitchWebSocketService(
     }
 
     // channel.channel_points_custom_reward_redemption.add
-    private async Task SubscribeToChannelPointsRedemption(string userOAuthCode, string? sessionId, CancellationToken cancellationToken)
+    private async Task SubscribeToChannelPointsRedemption(string? sessionId, CancellationToken cancellationToken)
     {
         try
         {
@@ -211,7 +226,7 @@ public class TwitchWebSocketService(
             {
                 Content = JsonContent.Create(subscriptionRequest)
             };
-            request.Options.Set(HttpRequestOptionKeys.UserOAuthCode, userOAuthCode);
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
             var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
 
@@ -230,8 +245,14 @@ public class TwitchWebSocketService(
         }
     }
 
-    public async Task SubscribeToBroadcasterSubscriptions(BroadcasterSubscriptionsRequest request, CancellationToken cancellationToken = default)
+    public async Task SubscribeToBroadcasterSubscriptions(CancellationToken cancellationToken = default)
     {
-        await SubscribeToChannelPointsRedemption(request.Code, sessionId: sessionId, cancellationToken);
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            logger.LogInformation("WebSocket session not established yet, channel points subscription will be created on welcome");
+            return;
+        }
+
+        await SubscribeToChannelPointsRedemption(sessionId: sessionId, cancellationToken);
     }
 }
