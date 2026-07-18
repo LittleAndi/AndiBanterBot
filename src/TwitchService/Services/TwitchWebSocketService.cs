@@ -7,6 +7,7 @@ public interface ITwitchWebSocketService
     Task SubscribeToBroadcasterSubscriptions(CancellationToken cancellationToken = default);
     TwitchWebSocketStatus GetStatus();
     event EventHandler<ChatMessageEvent>? ChatMessageReceived;
+    event EventHandler<RewardRedemptionEvent>? RewardRedemptionReceived;
 }
 
 public record TwitchWebSocketStatus(bool Connected, string SessionId, DateTime LastMessageAtUtc, TimeSpan KeepaliveTimeout);
@@ -37,6 +38,7 @@ public class TwitchWebSocketService(
     private DateTime lastMessageAtUtc = DateTime.MinValue;
 
     public event EventHandler<ChatMessageEvent>? ChatMessageReceived;
+    public event EventHandler<RewardRedemptionEvent>? RewardRedemptionReceived;
 
     public async Task Start(CancellationToken cancellationToken = default)
     {
@@ -187,10 +189,17 @@ public class TwitchWebSocketService(
 
         // Notifications carry the event type in metadata.subscription_type,
         // metadata.message_type is always "notification"
-        if (e.Response?.Metadata.MessageType == "notification" &&
-            e.Response.Metadata.SubscriptionType == "channel.chat.message")
+        if (e.Response?.Metadata.MessageType == "notification")
         {
-            HandleChatMessage(e.RawMessage);
+            switch (e.Response.Metadata.SubscriptionType)
+            {
+                case "channel.chat.message":
+                    HandleChatMessage(e.RawMessage);
+                    break;
+                case "channel.channel_points_custom_reward_redemption.add":
+                    HandleRewardRedemption(e.RawMessage);
+                    break;
+            }
         }
     }
 
@@ -214,6 +223,29 @@ public class TwitchWebSocketService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to parse channel.chat.message notification");
+        }
+    }
+
+    private void HandleRewardRedemption(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<RewardRedemptionNotification>(rawMessage);
+            var redemption = notification?.Payload.Event;
+            if (redemption is null)
+            {
+                logger.LogWarning("channel.channel_points_custom_reward_redemption.add notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Reward redeemed #{Broadcaster} {User}: {Reward}",
+                redemption.BroadcasterUserLogin, redemption.UserLogin, redemption.Reward.Title);
+
+            RewardRedemptionReceived?.Invoke(this, redemption);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.channel_points_custom_reward_redemption.add notification");
         }
     }
 
