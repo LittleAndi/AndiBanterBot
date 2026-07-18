@@ -1,0 +1,6 @@
+{
+  "files": ["src/Web/Components/App.razor"],
+  "insertBefore": "</body>",
+  "commentSyntax": "html",
+  "cspChecked": true
+}

@@ -6,6 +6,11 @@
 # dotenv files
 .env
 
+# Claude Code / Impeccable: machine-local config, never shared
+.claude/settings.local.json
+.impeccable/config.local.json
+.impeccable/live/sessions/
+
 # User-specific files (appsettings)
 appsettings.*.json
 testsettings.*.json
