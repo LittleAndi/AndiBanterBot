@@ -44,6 +44,11 @@ public class TwitchUserAuthHandler(IConfiguration configuration, ILogger<TwitchU
         var clientId = configuration["Twitch:ClientId"];
         var clientSecret = configuration["Twitch:ClientSecret"];
         request.Options.TryGetValue<string>(HttpRequestOptionKeys.UserOAuthCode, out var code);
+        if (string.IsNullOrEmpty(code))
+        {
+            logger.LogWarning("No user OAuth code provided in request options, request will be sent without user access token");
+            return;
+        }
 
         using var client = new HttpClient
         {
@@ -59,13 +64,16 @@ public class TwitchUserAuthHandler(IConfiguration configuration, ILogger<TwitchU
                 ["grant_type"] = "authorization_code",
                 ["redirect_uri"] = "https://localhost:7198"
             }), cancellationToken);
-        var responseString = await response.Content.ReadAsStringAsync();
+        var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
         response.EnsureSuccessStatusCode();
         var result = await response.Content.ReadFromJsonAsync<TwitchTokenResponse>(cancellationToken: cancellationToken);
 
         cachedToken = result!.AccessToken;
         tokenExpiry = DateTime.UtcNow.AddSeconds(result.ExpiresIn - 300); // Buffer of 5 minutes
 
-        logger.LogInformation("New Twitch access token obtained, expires in {ExpiresIn} seconds", result.ExpiresIn);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation("New Twitch access token obtained, expires in {ExpiresIn} seconds", result.ExpiresIn);
+        }
     }
 }
