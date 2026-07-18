@@ -9,6 +9,22 @@ public class TwitchApiClient(IHttpClientFactory httpClientFactory)
         var response = await httpClient.PostAsJsonAsync("auth/callback", new AuthCallbackRequest(code, scopes, redirectUri));
         return response.IsSuccessStatusCode;
     }
+
+    public async Task<AuthStatusResponse?> GetAuthStatus()
+    {
+        try
+        {
+            return await httpClient.GetFromJsonAsync<AuthStatusResponse>("auth/status");
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
 }
 
 public record AuthCallbackRequest(string Code, string Scopes, string RedirectUri);
+
+public record RoleStatus(string Login, bool NeedsLogin, string[] Scopes);
+
+public record AuthStatusResponse(RoleStatus? Bot, RoleStatus? Broadcaster, bool WebSocketConnected, DateTime? LastMessageAtUtc);

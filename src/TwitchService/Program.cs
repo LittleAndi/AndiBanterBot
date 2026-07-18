@@ -52,8 +52,29 @@ app.MapPost("auth/callback", async (
     return Results.Ok(new AuthCallbackResponse(info.Role.ToString(), info.Login));
 });
 
+app.MapGet("auth/status", (ITwitchTokenStore tokenStore, ITwitchWebSocketService twitchWebSocketService) =>
+{
+    var tokens = tokenStore.GetStatus();
+    var socket = twitchWebSocketService.GetStatus();
+
+    return Results.Ok(new AuthStatusResponse(
+        ToRoleStatus(tokens, TwitchUserRole.Bot),
+        ToRoleStatus(tokens, TwitchUserRole.Broadcaster),
+        socket.Connected,
+        socket.LastMessageAtUtc == DateTime.MinValue ? null : socket.LastMessageAtUtc));
+
+    static RoleStatus? ToRoleStatus(IReadOnlyDictionary<TwitchUserRole, TwitchTokenStatus> tokens, TwitchUserRole role)
+        => tokens.TryGetValue(role, out var status)
+            ? new RoleStatus(status.Login, status.NeedsLogin, status.Scopes)
+            : null;
+});
+
 app.Run();
 
 public record AuthCallbackRequest(string Code, string Scopes, string RedirectUri);
 
 public record AuthCallbackResponse(string Role, string Login);
+
+public record RoleStatus(string Login, bool NeedsLogin, string[] Scopes);
+
+public record AuthStatusResponse(RoleStatus? Bot, RoleStatus? Broadcaster, bool WebSocketConnected, DateTime? LastMessageAtUtc);
