@@ -19,6 +19,12 @@ public record Metadata
 
     [JsonPropertyName("message_timestamp")]
     public DateTime MessageTimestamp { get; init; }
+
+    [JsonPropertyName("subscription_type")]
+    public string? SubscriptionType { get; init; }
+
+    [JsonPropertyName("subscription_version")]
+    public string? SubscriptionVersion { get; init; }
 }
 
 public record Payload

@@ -51,7 +51,7 @@ public partial class MessageProcessor(
         moderationLogger.LogInformation("ModerationLogger: {ModerationResult}", classificationResultJson);
 
         // Check if the bot is connected to this channel
-        if (!chatService.JoinedChannels.Any(c => c.Channel.Equals(chatMessage.Channel, StringComparison.CurrentCultureIgnoreCase)))
+        if (!chatService.JoinedChannels.Any(c => c.Equals(chatMessage.Channel, StringComparison.CurrentCultureIgnoreCase)))
         {
             logger.LogWarning("Bot is not connected to channel {Channel}", chatMessage.Channel);
 

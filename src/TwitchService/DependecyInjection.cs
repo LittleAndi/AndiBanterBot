@@ -25,6 +25,8 @@ public static class DependencyInjection
             })
             .AddHttpMessageHandler<TwitchUserAuthHandler>();
 
+        services.AddSingleton<ITwitchUserApi, TwitchUserApi>();
+        services.AddSingleton<ITwitchChatService, TwitchChatService>();
         services.AddSingleton<IWebSocketClient, WebSocketClient>();
         services.AddSingleton<ITwitchWebSocketService, TwitchWebSocketService>();
         services.AddHostedService<TwitchEventSubSupervisorService>();
