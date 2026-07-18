@@ -1,8 +1,9 @@
 @page "/twitchlogin"
-@using System.Web
+@using Web.Components.Dashboard
 @using Web.Components.Services
 @inject NavigationManager Navigator
 @inject TwitchApiClient TwitchApiClient
+@inject TwitchAuthUrlBuilder AuthUrlBuilder
 @rendermode InteractiveServer
 
 <PageTitle>Twitch Login</PageTitle>
@@ -35,40 +36,17 @@ else
     <a href='@streamerUrl'>Authorize Bot with stream account</a>
 </div>
 
-<div class="mb-3">
-    <h5>Send chat message</h5>
-    <div class="input-group" style="max-width: 480px;">
-        <input class="form-control" @bind="chatMessage" @bind:event="oninput"
-               placeholder="Message to the channel" @onkeyup="@(e => e.Key == "Enter" ? SendChat() : Task.CompletedTask)" />
-        <button class="btn btn-primary" @onclick="SendChat" disabled="@(sending || string.IsNullOrWhiteSpace(chatMessage))">Send</button>
-    </div>
-    @if (sendFeedback is not null)
-    {
-        <div class="form-text @(sendSucceeded ? "text-success" : "text-danger")">@sendFeedback</div>
-    }
-</div>
+<ChatSendBox />
 
 @code {
-    [Inject]
-    private IConfiguration Configuration { get; set; } = default!;
-
     private string botUrl = string.Empty;
     private string streamerUrl = string.Empty;
     private AuthStatusResponse? status;
-    private string chatMessage = string.Empty;
-    private bool sending;
-    private bool sendSucceeded;
-    private string? sendFeedback;
 
     protected override void OnInitialized()
     {
-        var clientId = Configuration["TwitchLib:ClientId"]!;
-        var botScopes = BuildScopes(Configuration!.GetSection("TwitchLib:BotScopes")!.Get<string[]>()!);
-        var broadcasterScopes = BuildScopes(Configuration!.GetSection("TwitchLib:BroadcasterScopes")!.Get<string[]>()!);
-
-        botUrl = $"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={clientId}&redirect_uri={HttpUtility.UrlEncode(Navigator.BaseUri + "callback")}&scope={botScopes}";
-
-        streamerUrl = $"https://id.twitch.tv/oauth2/authorize?response_type=code&client_id={clientId}&redirect_uri={HttpUtility.UrlEncode(Navigator.BaseUri + "pubsubcallback")}&scope={broadcasterScopes}";
+        botUrl = AuthUrlBuilder.BuildBotAuthorizeUrl(Navigator.BaseUri);
+        streamerUrl = AuthUrlBuilder.BuildBroadcasterAuthorizeUrl(Navigator.BaseUri);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -80,38 +58,10 @@ else
         }
     }
 
-    private async Task SendChat()
-    {
-        if (sending || string.IsNullOrWhiteSpace(chatMessage)) return;
-
-        sending = true;
-        try
-        {
-            var result = await TwitchApiClient.SendChatMessage(chatMessage);
-            sendSucceeded = result.Sent;
-            sendFeedback = result.Sent ? "Message sent." : result.DropReason ?? "Message was not sent.";
-            if (result.Sent)
-            {
-                chatMessage = string.Empty;
-            }
-        }
-        finally
-        {
-            sending = false;
-        }
-    }
-
     private static string RoleBadge(RoleStatus? role) => role switch
     {
         null => "— not logged in",
         { NeedsLogin: true } => $"— {role.Login}: login expired, please log in again",
         _ => $"— logged in as {role.Login}",
     };
-
-    private static string BuildScopes(string[] scopes)
-    {
-        // Url encode the scopes string
-        return HttpUtility.UrlEncode(string.Join(" ", scopes));
-    }
-
 }

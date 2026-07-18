@@ -1,15 +1,13 @@
 @page "/pubsubcallback"
 @using System.Web
-@using System.Text.Json.Serialization
-@using Microsoft.AspNetCore.Components.Web
 @using Web.Components.Services
 @inject NavigationManager NavigationManager
 @inject TwitchApiClient TwitchApiClient
 @rendermode InteractiveServer
 
-<PageTitle>PubSub OAuth Callback</PageTitle>
+<PageTitle>Broadcaster OAuth Callback</PageTitle>
 
-<h1>PubSub OAuth Callback</h1>
+<h1>Broadcaster OAuth Callback</h1>
 
 @if (!string.IsNullOrEmpty(error))
 {
@@ -20,7 +18,7 @@
 else if (!string.IsNullOrEmpty(accessToken))
 {
     <div class="alert alert-success">
-        Successfully authenticated! Starting services...
+        Successfully authenticated! Taking you to the dashboard…
     </div>
 }
 else
@@ -31,7 +29,6 @@ else
 @code {
     private string? error;
     private string? accessToken;
-    private HttpClient httpClient = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -66,6 +63,6 @@ else
         StateHasChanged();
 
         await Task.Delay(1000);
-        NavigationManager.NavigateTo("/broadcaster/status");
+        NavigationManager.NavigateTo("/");
     }
 }

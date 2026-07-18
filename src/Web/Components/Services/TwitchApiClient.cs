@@ -10,13 +10,17 @@ public class TwitchApiClient(IHttpClientFactory httpClientFactory)
         return response.IsSuccessStatusCode;
     }
 
+    // The dashboard polls this frequently and needs to read as "unreachable" within
+    // a couple of seconds, not wait out the standard resilience handler's full
+    // retry budget (which can take 20+ seconds against a dead dependency).
     public async Task<AuthStatusResponse?> GetAuthStatus()
     {
         try
         {
-            return await httpClient.GetFromJsonAsync<AuthStatusResponse>("auth/status");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            return await httpClient.GetFromJsonAsync<AuthStatusResponse>("auth/status", cts.Token);
         }
-        catch (HttpRequestException)
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
         {
             return null;
         }

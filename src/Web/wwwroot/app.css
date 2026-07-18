@@ -1,19 +1,156 @@
+:root {
+  /* Primitives (OKLCH) — hue 150 neutrals, hue 112 primary (lime), hue 350 accent (magenta) */
+  --oklch-bg: oklch(0.16 0.012 150);
+  --oklch-surface: oklch(0.22 0.014 150);
+  --oklch-surface-raised: oklch(0.27 0.015 150);
+  --oklch-border: oklch(0.32 0.016 150);
+  --oklch-ink: oklch(0.94 0.006 150);
+  --oklch-muted: oklch(0.63 0.010 150);
+  --oklch-primary: oklch(0.88 0.16 112);
+  --oklch-primary-ink: oklch(0.2 0.03 112);
+  --oklch-primary-dim: oklch(0.3 0.05 112);
+  --oklch-accent: oklch(0.68 0.24 350);
+  --oklch-accent-ink: oklch(0.98 0.01 350);
+  --oklch-accent-dim: oklch(0.32 0.09 350);
+  /* Wash/border tints, authored directly rather than color-mixed — mixing
+     magenta (350) into the hue-150 neutrals crosses the hue wheel and
+     desaturates into a muddy olive-brown. */
+  --oklch-primary-wash: oklch(0.23 0.028 112);
+  --oklch-primary-border: oklch(0.4 0.09 112);
+  --oklch-accent-wash: oklch(0.24 0.032 350);
+  --oklch-accent-border: oklch(0.44 0.13 350);
+
+  /* Semantic */
+  --color-bg: var(--oklch-bg);
+  --color-surface: var(--oklch-surface);
+  --color-surface-raised: var(--oklch-surface-raised);
+  --color-border: var(--oklch-border);
+  --color-ink: var(--oklch-ink);
+  --color-muted: var(--oklch-muted);
+  --color-primary: var(--oklch-primary);
+  --color-primary-ink: var(--oklch-primary-ink);
+  --color-primary-dim: var(--oklch-primary-dim);
+  --color-accent: var(--oklch-accent);
+  --color-accent-ink: var(--oklch-accent-ink);
+  --color-accent-dim: var(--oklch-accent-dim);
+  --color-primary-wash: var(--oklch-primary-wash);
+  --color-primary-border: var(--oklch-primary-border);
+  --color-accent-wash: var(--oklch-accent-wash);
+  --color-accent-border: var(--oklch-accent-border);
+
+  /* Spacing — 4pt scale */
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+
+  /* Type */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+
+  /* Motion */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 400ms;
+
+  /* z-index scale */
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-modal-backdrop: 30;
+  --z-modal: 40;
+  --z-toast: 50;
+  --z-tooltip: 60;
+
+  color-scheme: dark;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
+/* Light text on dark reads heavier than dark-on-light; compensate slightly */
+body {
+  font-weight: 400;
+  letter-spacing: 0.005em;
 }
 
 a, .btn-link {
-    color: #006bb7;
+    color: var(--color-primary);
 }
 
 .btn-primary {
-    color: #fff;
-    background-color: #1b6ec2;
-    border-color: #1861ac;
+    color: var(--color-primary-ink);
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+  box-shadow: 0 0 0 0.1rem var(--color-bg), 0 0 0 0.25rem var(--color-primary);
+}
+
+.form-control {
+    background-color: var(--color-bg);
+    border-color: var(--color-border);
+    color: var(--color-ink);
+}
+
+.form-control:focus {
+    background-color: var(--color-bg);
+    border-color: var(--color-primary);
+    color: var(--color-ink);
+}
+
+/* Bootstrap alerts still used on the OAuth login/callback pages — themed to
+   match the dark palette instead of Bootstrap's light-mode defaults. */
+.alert {
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+}
+
+.alert-success {
+    background-color: var(--color-primary-wash);
+    border-color: var(--color-primary-border);
+    color: var(--color-ink);
+}
+
+.alert-warning,
+.alert-danger {
+    background-color: var(--color-accent-wash);
+    border-color: var(--color-accent-border);
+    color: var(--color-ink);
+}
+
+.alert-secondary {
+    background-color: var(--color-surface-raised);
+    border-color: var(--color-border);
+    color: var(--color-muted);
+}
+
+.text-danger {
+    color: var(--color-accent) !important;
+}
+
+.text-success {
+    color: var(--color-primary) !important;
 }
 
 .content {
@@ -25,15 +162,15 @@ h1:focus {
 }
 
 .valid.modified:not([type=checkbox]) {
-    outline: 1px solid #26b050;
+    outline: 1px solid var(--color-primary);
 }
 
 .invalid {
-    outline: 1px solid #e50000;
+    outline: 1px solid var(--color-accent);
 }
 
 .validation-message {
-    color: #e50000;
+    color: var(--color-accent);
 }
 
 .blazor-error-boundary {
@@ -47,14 +184,43 @@ h1:focus {
     }
 
 .darker-border-checkbox.form-check-input {
-    border-color: #929292;
+    border-color: var(--color-border);
 }
 
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-    color: var(--bs-secondary-color);
+    color: var(--color-muted);
     text-align: end;
 }
 
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
+}
+
+/* Dark scrollbars so the browser chrome doesn't clash with the theme */
+* {
+  scrollbar-color: var(--color-surface-raised) var(--color-bg);
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-surface-raised);
+  border-radius: 6px;
+  border: 3px solid var(--color-bg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

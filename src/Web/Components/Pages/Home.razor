@@ -1,7 +1,91 @@
-﻿@page "/"
+@page "/"
+@using Web.Components.Dashboard
+@using Web.Components.Services
+@implements IAsyncDisposable
+@inject TwitchApiClient TwitchApiClient
+@inject TwitchAuthUrlBuilder AuthUrlBuilder
+@inject NavigationManager Navigator
+@rendermode InteractiveServer
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Dashboard</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="dashboard">
+    <StatusBand Status="status" Loading="loading" Refreshing="refreshing" OnRetry="RetryStatus" />
 
-Welcome to your new app.
+    <div class="dashboard-grid">
+        <AccountCard Title="Bot account" Role="status?.Bot" AuthorizeUrl="@botUrl" ActionLabel="Log in with bot account" />
+        <AccountCard Title="Broadcaster account" Role="status?.Broadcaster" AuthorizeUrl="@streamerUrl" ActionLabel="Log in with broadcaster account" />
+        <ChatSendBox />
+    </div>
+
+    <section class="coming-soon">
+        <h2 class="coming-soon-title">More on the way</h2>
+        <ul class="coming-soon-list">
+            <li>Live chat activity — will show up here once the bot streams it through</li>
+            <li>PUBG match stats — the data's already flowing, just not to this screen yet</li>
+            <li>Clip history</li>
+        </ul>
+    </section>
+</div>
+
+@code {
+    private AuthStatusResponse? status;
+    private bool loading = true;
+    private bool refreshing;
+    private string botUrl = string.Empty;
+    private string streamerUrl = string.Empty;
+    private PeriodicTimer? timer;
+
+    protected override void OnInitialized()
+    {
+        botUrl = AuthUrlBuilder.BuildBotAuthorizeUrl(Navigator.BaseUri);
+        streamerUrl = AuthUrlBuilder.BuildBroadcasterAuthorizeUrl(Navigator.BaseUri);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await FetchStatusAsync();
+            StateHasChanged();
+            _ = PollStatusAsync();
+        }
+    }
+
+    private async Task FetchStatusAsync()
+    {
+        status = await TwitchApiClient.GetAuthStatus();
+        loading = false;
+    }
+
+    private async Task RetryStatus()
+    {
+        refreshing = true;
+        await FetchStatusAsync();
+        refreshing = false;
+        StateHasChanged();
+    }
+
+    private async Task PollStatusAsync()
+    {
+        timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        try
+        {
+            while (await timer.WaitForNextTickAsync())
+            {
+                await FetchStatusAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            // Timer disposed on component teardown; stop polling silently.
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        timer?.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}

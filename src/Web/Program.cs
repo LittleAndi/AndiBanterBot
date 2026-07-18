@@ -14,6 +14,7 @@ builder.Services.AddHttpClient("twitch", (ServiceProvider, client) =>
     client.BaseAddress = new("https+http://twitch");
 });
 builder.Services.AddTransient<TwitchApiClient>();
+builder.Services.AddTransient<TwitchAuthUrlBuilder>();
 
 
 var app = builder.Build();
