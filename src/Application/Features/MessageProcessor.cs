@@ -1,31 +1,35 @@
 namespace Application.Features;
 
-public record ProcessMessageCommand(ChatMessage ChatMessage, string ThreadId) : IRequest;
+public interface IMessageProcessor
+{
+    public Task ProcessMessage(ChatMessage chatMessage, string threadId, CancellationToken cancellationToken = default);
+    public Task ProcessWhisper(WhisperMessage whisperMessage, CancellationToken cancellationToken = default);
+}
 
-public partial class ProcessMessageCommandHandler(
+public partial class MessageProcessor(
     IChatService chatService,
     IAIClient aiClient,
     IAssistantClient assistantClient,
     // IPubgAIClient aiPubgAIClient,
     IModerationClient moderationClient,
-    IMediator mediator,
+    IClipService clipService,
     ChatOptions options,
     // IPubgApiClient pubgApiClient,
     // IPubgStorageClient pubgStorageClient,
-    ILogger<ProcessMessageCommandHandler> logger,
+    ILogger<MessageProcessor> logger,
     ILoggerFactory loggerFactory
-    ) : IRequestHandler<ProcessMessageCommand>
+    ) : IMessageProcessor
 {
     private readonly IChatService chatService = chatService;
     private readonly IAIClient aiClient = aiClient;
     private readonly IAssistantClient assistantClient = assistantClient;
     // private readonly IPubgAIClient aiPubgAIClient = aiPubgAIClient;
     private readonly IModerationClient moderationClient = moderationClient;
-    private readonly IMediator mediator = mediator;
+    private readonly IClipService clipService = clipService;
     private readonly ChatOptions options = options;
     // private readonly IPubgApiClient pubgApiClient = pubgApiClient;
     // private readonly IPubgStorageClient pubgStorageClient = pubgStorageClient;
-    private readonly ILogger<ProcessMessageCommandHandler> logger = logger;
+    private readonly ILogger<MessageProcessor> logger = logger;
     private readonly ILogger moderationLogger = loggerFactory.CreateLogger("Moderation");
     private readonly FixedMessageQueue messages = new(5);
     private readonly Random random = new((int)DateTime.Now.Ticks);
@@ -34,79 +38,44 @@ public partial class ProcessMessageCommandHandler(
     [GeneratedRegex(@"^!match\s([a-f0-9-]+)\s(\S+)\s(.+)", RegexOptions.IgnoreCase)]
     private static partial Regex MatchRegex();
 
-    public async Task Handle(ProcessMessageCommand request, CancellationToken cancellationToken)
+    [GeneratedRegex(@"^join channel (?<channel>[\S\d]*)$", RegexOptions.IgnoreCase | RegexOptions.Multiline)]
+    private static partial Regex WhisperChannelRegex();
+
+    public async Task ProcessMessage(ChatMessage chatMessage, string threadId, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("{Channel} - {Username}: {Message}", request.ChatMessage.Channel, request.ChatMessage.Username, request.ChatMessage.Message);
+        logger.LogInformation("{Channel} - {Username}: {Message}", chatMessage.Channel, chatMessage.Username, chatMessage.Message);
 
         // Check for moderation classification
-        var classificationResult = await moderationClient.Classify(request.ChatMessage.Message, cancellationToken);
+        var classificationResult = await moderationClient.Classify(chatMessage.Message, cancellationToken);
         var classificationResultJson = JsonSerializer.Serialize(classificationResult);
-        // logger.LogInformation("Moderation: {ModerationResult}", classificationResultJson);
         moderationLogger.LogInformation("ModerationLogger: {ModerationResult}", classificationResultJson);
 
         // Check if the bot is connected to this channel
-        if (!chatService.JoinedChannels.Any(c => c.Channel.Equals(request.ChatMessage.Channel, StringComparison.CurrentCultureIgnoreCase)))
+        if (!chatService.JoinedChannels.Any(c => c.Channel.Equals(chatMessage.Channel, StringComparison.CurrentCultureIgnoreCase)))
         {
-            logger.LogWarning("Bot is not connected to channel {Channel}", request.ChatMessage.Channel);
+            logger.LogWarning("Bot is not connected to channel {Channel}", chatMessage.Channel);
 
             // Try to join the channel
-            await chatService.JoinChannel(request.ChatMessage.Channel, cancellationToken);
+            await chatService.JoinChannel(chatMessage.Channel, cancellationToken);
             return;
         }
 
-        if (request.ChatMessage.Message.Equals("!clip", StringComparison.CurrentCultureIgnoreCase))
+        if (chatMessage.Message.Equals("!clip", StringComparison.CurrentCultureIgnoreCase))
         {
-            // Create a clip
-            CreateClipCommand clipCommand = new(request.ChatMessage.Channel);
-            await mediator.Send(clipCommand, cancellationToken);
+            await clipService.CreateClipAsync(chatMessage.Channel, cancellationToken);
             return;
         }
 
-        // if (request.ChatMessage.Message.StartsWith("!match", StringComparison.CurrentCultureIgnoreCase))
-        // {
-        //     try
-        //     {
-        //         if (MatchRegex().IsMatch(request.ChatMessage.Message))
-        //         {
-        //             var regexMatch = MatchRegex().Match(request.ChatMessage.Message);
-
-        //             // Find the match stats
-        //             var matchId = regexMatch.Groups[1].Value;
-        //             var mainParticipantName = regexMatch.Groups[2].Value;
-        //             var match = await pubgApiClient.GetMatch(matchId, cancellationToken);
-
-        //             // Save the match
-        //             await pubgStorageClient.SaveMatch(matchId, match, cancellationToken);
-
-        //             var additionalPrompt = regexMatch.Groups[3].Value;
-
-        //             var response = await aiPubgAIClient.GetPubgCompletion(additionalPrompt, match, mainParticipantName);
-
-        //             await chatService.SendReply(request.ChatMessage.Channel, request.ChatMessage.Id, response, cancellationToken);
-        //         }
-        //         else
-        //         {
-        //             await chatService.SendReply(request.ChatMessage.Channel, request.ChatMessage.Id, "Didn't understand that !match command", cancellationToken);
-        //         }
-        //     }
-        //     catch (System.Exception ex)
-        //     {
-        //         logger.LogError(ex, "Error when processing !match command");
-        //     }
-
-        //     return;
-        // }
-
-        messages.Enqueue(new HistoryMessage(request.ChatMessage.Channel, request.ChatMessage.Username, request.ChatMessage.Message, DateTime.Now));
+        messages.Enqueue(new HistoryMessage(chatMessage.Channel, chatMessage.Username, chatMessage.Message, DateTime.Now));
         logger.LogTrace("Messages: {Messages}", string.Join(", ", messages));
-        logger.LogTrace("Summary: {Summary}", messages.GetExtractiveSummary(request.ChatMessage.Channel));
+        logger.LogTrace("Summary: {Summary}", messages.GetExtractiveSummary(chatMessage.Channel));
 
-        await assistantClient.AddMessage(request.ThreadId, request.ChatMessage.Username, string.Empty, request.ChatMessage.Message);
+        await assistantClient.AddMessage(threadId, chatMessage.Username, string.Empty, chatMessage.Message);
 
         // Ignore messages from some users (like yourself)
         if (
-            request.ChatMessage.Username.Equals(options.Username, StringComparison.CurrentCultureIgnoreCase)
-            || options.IgnoreChatMessagesFrom.Contains(request.ChatMessage.Username, StringComparer.CurrentCultureIgnoreCase)
+            chatMessage.Username.Equals(options.Username, StringComparison.CurrentCultureIgnoreCase)
+            || options.IgnoreChatMessagesFrom.Contains(chatMessage.Username, StringComparer.CurrentCultureIgnoreCase)
         )
         {
             return;
@@ -115,18 +84,18 @@ public partial class ProcessMessageCommandHandler(
         var randomResponseChance = random.NextDouble();
         logger.LogDebug("Random value: {RandomValue}", randomResponseChance);
 
-        if (request.ChatMessage.Message.Contains(options.Username, StringComparison.CurrentCultureIgnoreCase) || randomResponseChance > RandomResponseChance)
+        if (chatMessage.Message.Contains(options.Username, StringComparison.CurrentCultureIgnoreCase) || randomResponseChance > RandomResponseChance)
         {
             // If the message contains the bot's name, use only that message as a prompt
-            string completion = await assistantClient.RunAndWait(request.ThreadId);
+            string completion = await assistantClient.RunAndWait(threadId);
 
-            logger.LogDebug("Completion ({Channel}): {Completion}", request.ChatMessage.Channel, completion);
+            logger.LogDebug("Completion ({Channel}): {Completion}", chatMessage.Channel, completion);
 
-            if (request.ChatMessage.Channel.Equals(options.Channel, StringComparison.CurrentCultureIgnoreCase))
+            if (chatMessage.Channel.Equals(options.Channel, StringComparison.CurrentCultureIgnoreCase))
             {
                 try
                 {
-                    await chatService.SendReply(request.ChatMessage.Channel, request.ChatMessage.Id, completion, cancellationToken);
+                    await chatService.SendReply(chatMessage.Channel, chatMessage.Id, completion, cancellationToken);
                 }
                 catch (System.Exception ex)
                 {
@@ -135,6 +104,29 @@ public partial class ProcessMessageCommandHandler(
                 }
             }
         }
+    }
+
+    public async Task ProcessWhisper(WhisperMessage whisperMessage, CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Whisper from {Username}: {Message}", whisperMessage.Username, whisperMessage.Message);
+
+        // Only accept whispers from the specified users
+        if (!options.AcceptWhispersFrom.Contains(whisperMessage.Username, StringComparer.CurrentCultureIgnoreCase)) return;
+
+        var prompt = whisperMessage.Message;
+
+        // If the whisper is a command to join a channel, join the channel
+        if (WhisperChannelRegex().IsMatch(prompt))
+        {
+            var match = WhisperChannelRegex().Match(prompt);
+            var channel = match.Groups["channel"].Value;
+            await chatService.JoinChannel(channel, cancellationToken);
+            return;
+        }
+
+        // Otherwise, generate a completion and send it to the main channel
+        var completion = await aiClient.GetCompletion(prompt);
+        await chatService.SendMessage(options.Channel, completion, cancellationToken);
     }
 }
 
@@ -196,9 +188,6 @@ internal class FixedMessageQueue(int capacity) : Queue<HistoryMessage>
         // Join the selected sentences and return the summary
         return string.Join(" ", selectedSentences);
     }
-
 }
 
 public record HistoryMessage(string Channel, string Username, string Message, DateTime Timestamp);
-
-#pragma warning restore OPENAI001

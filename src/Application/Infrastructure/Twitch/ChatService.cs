@@ -8,6 +8,8 @@ namespace Application.Infrastructure.Twitch;
 
 public interface IChatService
 {
+    public event Func<ChatMessage, string, Task>? MessageReceived;
+    public event Func<WhisperMessage, Task>? WhisperReceived;
     public Task StartAsync(string accessToken, CancellationToken cancellationToken);
     public Task SendMessage(string channel, string message, CancellationToken cancellationToken = default);
     public Task SendReply(string channel, string chatMessage, string reply, CancellationToken cancellationToken = default);
@@ -15,14 +17,16 @@ public interface IChatService
     public IReadOnlyList<JoinedChannel> JoinedChannels { get; }
 }
 
-public partial class ChatService(ILoggerFactory loggerFactory, ILogger<ChatService> logger, ChatOptions options, IMediator mediator, IAssistantClient assistantClient) : IChatService
+public partial class ChatService(ILoggerFactory loggerFactory, ILogger<ChatService> logger, ChatOptions options, IAssistantClient assistantClient) : IChatService
 {
     readonly TwitchClient client = new(loggerFactory: loggerFactory);
     private readonly ILogger<ChatService> logger = logger;
     private readonly ChatOptions options = options;
-    private readonly IMediator mediator = mediator;
     private readonly IAssistantClient assistantClient = assistantClient;
     private string threadId = string.Empty;
+
+    public event Func<ChatMessage, string, Task>? MessageReceived;
+    public event Func<WhisperMessage, Task>? WhisperReceived;
 
 
     private Task Client_OnConnected(object? sender, OnConnectedEventArgs e)
@@ -39,14 +43,12 @@ public partial class ChatService(ILoggerFactory loggerFactory, ILogger<ChatServi
 
     private async Task Client_OnWhisperReceived(object? sender, OnWhisperReceivedArgs e)
     {
-        var processWhisperCommand = new ProcessWhisperCommand(e.WhisperMessage);
-        await mediator.Send(processWhisperCommand);
+        await (WhisperReceived?.Invoke(e.WhisperMessage) ?? Task.CompletedTask);
     }
 
     private async Task Client_OnMessageReceived(object? sender, OnMessageReceivedArgs e)
     {
-        var processMessageCommand = new ProcessMessageCommand(e.ChatMessage, threadId);
-        await mediator.Send(processMessageCommand);
+        await (MessageReceived?.Invoke(e.ChatMessage, threadId) ?? Task.CompletedTask);
     }
 
     private Task Client_OnJoinedChannel(object? sender, OnJoinedChannelArgs e)

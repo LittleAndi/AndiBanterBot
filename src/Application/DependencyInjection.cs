@@ -1,12 +1,13 @@
-using System.Reflection;
-
 namespace Application;
 
 public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
+        services.AddSingleton<IMessageProcessor, MessageProcessor>();
+        services.AddSingleton<IInstructionService, InstructionService>();
+        services.AddSingleton<IRewardService, RewardService>();
+        services.AddHostedService<ChatEventWiring>();
         // services.AddHostedService<PubgBackgroundService>();
         return services;
     }
