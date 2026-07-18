@@ -2,7 +2,6 @@ global using Application.Common;
 global using Application.Features;
 global using Application.Infrastructure.OpenAI;
 global using Application.Infrastructure.Twitch;
-global using MediatR;
 global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;

@@ -10,12 +10,12 @@ public interface IClipService
 
 public record CreateClipResult(bool ClipCreated, string ClipId, string EditUrl, string Url);
 
-public class ClipService(ILogger<ClipService> logger, ChatOptions options, IMediator mediator) : IClipService
+public class ClipService(ILogger<ClipService> logger, ChatOptions options, IChatService chatService) : IClipService
 {
     private readonly TwitchAPI twitchApi = new();
     private readonly ILogger<ClipService> logger = logger;
     private readonly ChatOptions options = options;
-    private readonly IMediator mediator = mediator;
+    private readonly IChatService chatService = chatService;
 
     public void Start(string accessToken)
     {
@@ -38,14 +38,14 @@ public class ClipService(ILogger<ClipService> logger, ChatOptions options, IMedi
 
             // Send message to chat
             var url = createdClip.EditUrl[..^5];
-            await mediator.Publish(new SendMessageNotification(options.Channel, $"Clip created! {url}"), cancellationToken);
+            await chatService.SendMessage(options.Channel, $"Clip created! {url}", cancellationToken);
 
             return new CreateClipResult(true, createdClip.Id, createdClip.EditUrl, url);
         }
         catch (System.Exception ex)
         {
             logger.LogError(ex, "Error creating clip for channel {Channel}", options.Channel);
-            await mediator.Publish(new SendMessageNotification(options.Channel, "Couldn't create clip at the moment, try again later."), cancellationToken);
+            await chatService.SendMessage(options.Channel, "Couldn't create clip at the moment, try again later.", cancellationToken);
             return new CreateClipResult(false, string.Empty, string.Empty, string.Empty);
         }
     }

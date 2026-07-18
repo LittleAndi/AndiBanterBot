@@ -15,7 +15,8 @@ public class WebsocketService : IWebsocketService
     private readonly ILogger<WebsocketService> logger;
     private readonly EventSubWebsocketClient eventSubWebsocketClient;
     private readonly ChatOptions options;
-    private readonly IMediator mediator;
+    private readonly IInstructionService instructionService;
+    private readonly IRewardService rewardService;
     private readonly TwitchAPI twitchApi = new();
     private string userId = string.Empty;
     private string broadcasterId = string.Empty;
@@ -25,14 +26,16 @@ public class WebsocketService : IWebsocketService
         ILogger<WebsocketService> logger,
         EventSubWebsocketClient eventSubWebsocketClient,
         ChatOptions options,
-        IMediator mediator
+        IInstructionService instructionService,
+        IRewardService rewardService
     )
     {
         this.logger = logger;
 
         this.eventSubWebsocketClient = eventSubWebsocketClient;
         this.options = options;
-        this.mediator = mediator;
+        this.instructionService = instructionService;
+        this.rewardService = rewardService;
         this.eventSubWebsocketClient.WebsocketConnected += OnWebsocketConnected;
         this.eventSubWebsocketClient.WebsocketDisconnected += OnWebsocketDisconnected;
         this.eventSubWebsocketClient.WebsocketReconnected += OnWebsocketReconnected;
@@ -98,15 +101,13 @@ public class WebsocketService : IWebsocketService
         var broadcasterUserId = args.Payload.Event.BroadcasterUserLogin;
         logger.LogInformation("WebSocket ChannelAdBreakBegin: {DurationSeconds} seconds", adDurationSeconds);
 
-        var processInstructionCommand = new ProcessInstructionCommand(
+        await instructionService.ProcessInstruction(
             $@"Tell the chat an AD started, it will be over in {adDurationSeconds} seconds.
             Give chat a suggestion what to do in the meantime.
             If nothing else you can invite them to join our Discord server with this link {options.DiscordJoinLink}
             Remind the chat that they can use their Prime Sub to sub to the channel to avoid ads.",
             broadcasterUserId
         );
-
-        await mediator.Send(processInstructionCommand);
     }
 
     private Task OnChannelBan(object? sender, ChannelBanArgs args)
@@ -146,8 +147,7 @@ public class WebsocketService : IWebsocketService
 
         logger.LogInformation("{UserName} followed {BroadcasterUserName} at {FollowedAt}", newFollower, e.Payload.Event.BroadcasterUserName, e.Payload.Event.FollowedAt);
 
-        var processInstructionCommand = new ProcessInstructionCommand($"Welcome {newFollower} as a new follower! Post some hype in chat for the new follower!", broadcasterUserId);
-        await mediator.Send(processInstructionCommand);
+        await instructionService.ProcessInstruction($"Welcome {newFollower} as a new follower! Post some hype in chat for the new follower!", broadcasterUserId);
     }
 
     private Task OnChannelGoalBegin(object? sender, ChannelGoalBeginArgs args)
@@ -228,12 +228,10 @@ public class WebsocketService : IWebsocketService
         return Task.CompletedTask;
     }
 
-    private Task OnChannelPointsCustomRewardRedemption(object? sender, ChannelPointsCustomRewardRedemptionArgs args)
+    private async Task OnChannelPointsCustomRewardRedemption(object? sender, ChannelPointsCustomRewardRedemptionArgs args)
     {
         logger.LogDebug("OnChannelPointsCustomRewardRedemption: {@Payload}", args.Payload);
-        var command = new ProcessRewardRedeemCommand(args.Payload.Event.Reward, args.Payload.Event.UserInput);
-        mediator.Send(command);
-        return Task.CompletedTask;
+        await rewardService.ProcessRewardRedeem(args.Payload.Event.Reward, args.Payload.Event.UserInput);
     }
 
     private Task OnChannelPointsCustomRewardRedemptionUpdate(object? sender, ChannelPointsCustomRewardRedemptionArgs args)
@@ -337,11 +335,10 @@ public class WebsocketService : IWebsocketService
 
         logger.LogInformation("Websocket OnChannelSubscribe: {SubscriberUserName} subscribed to {BroadcasterUserName}, tier: {Tier}", subscriberUserName, userName, tier);
 
-        var processInstructionCommand = new ProcessInstructionCommand(
+        await instructionService.ProcessInstruction(
             $"We got a new subscriber! Send love and thanks to {subscriberUserName}!",
             broadcasterUserId
         );
-        await mediator.Send(processInstructionCommand);
     }
 
     private Task OnChannelSubscriptionEnd(object? sender, ChannelSubscriptionEndArgs args)
@@ -366,11 +363,10 @@ public class WebsocketService : IWebsocketService
 
         logger.LogInformation("Websocket OnChannelSubscribe: {SubscriberUserName} resubscribed to {BroadcasterUserName}, tier: {Tier}", subscriberUserName, userName, tier);
 
-        var processInstructionCommand = new ProcessInstructionCommand(
+        await instructionService.ProcessInstruction(
             $"{subscriberUserName} resubscribed! They subscribed for a total of {cumulativeMonths} months! Send love and cheers to {subscriberUserName}!",
             broadcasterUserId
         );
-        await mediator.Send(processInstructionCommand);
     }
 
     private Task OnChannelSuspiciousUserMessage(object? sender, ChannelSuspiciousUserMessageArgs args)
@@ -404,8 +400,7 @@ public class WebsocketService : IWebsocketService
         var newVip = args.Payload.Event.UserName;
         var broadcasterUserId = args.Payload.Event.BroadcasterUserLogin;
 
-        var processInstructionCommand = new ProcessInstructionCommand($"Welcome {newVip} as a VIP member! Give some cheers by writing a limerick about the new VIP!", broadcasterUserId);
-        await mediator.Send(processInstructionCommand);
+        await instructionService.ProcessInstruction($"Welcome {newVip} as a VIP member! Give some cheers by writing a limerick about the new VIP!", broadcasterUserId);
     }
 
     private Task OnChannelWarningAcknowledge(object? sender, ChannelWarningAcknowledgeArgs args)
