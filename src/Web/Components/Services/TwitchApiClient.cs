@@ -21,9 +21,33 @@ public class TwitchApiClient(IHttpClientFactory httpClientFactory)
             return null;
         }
     }
+
+    public async Task<SendChatMessageResponse> SendChatMessage(string message)
+    {
+        try
+        {
+            var response = await httpClient.PostAsJsonAsync("chat/messages", new SendChatMessageRequest(message));
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<SendChatMessageResponse>()
+                    ?? new SendChatMessageResponse(false, null, "Empty response from Twitch service");
+            }
+
+            var error = await response.Content.ReadAsStringAsync();
+            return new SendChatMessageResponse(false, null, $"Twitch service returned {(int)response.StatusCode}: {error}");
+        }
+        catch (HttpRequestException ex)
+        {
+            return new SendChatMessageResponse(false, null, $"Could not reach the Twitch service: {ex.Message}");
+        }
+    }
 }
 
 public record AuthCallbackRequest(string Code, string Scopes, string RedirectUri);
+
+public record SendChatMessageRequest(string Message, string? ReplyParentMessageId = null);
+
+public record SendChatMessageResponse(bool Sent, string? MessageId, string? DropReason);
 
 public record RoleStatus(string Login, bool NeedsLogin, string[] Scopes);
 

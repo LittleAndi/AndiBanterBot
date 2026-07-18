@@ -16,11 +16,9 @@ public static class DependencyInjection
     private static IServiceCollection AddTwitch(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddConfigurationOptions<ChatOptions>(configuration);
-        services.AddSingleton<IChatService, ChatService>();
-        services.AddSingleton<IClipService, ClipService>();
-        services.AddSingleton<IMonitorService, MonitorService>();
-        services.AddSingleton<IWebsocketService, WebsocketService>();
-        services.AddTwitchLibEventSubWebsockets();
+        // IChatService/IClipService implementations moved to the Helix-based
+        // TwitchService project; register adapters here once the feature layer
+        // is wired to it.
         return services;
     }
 

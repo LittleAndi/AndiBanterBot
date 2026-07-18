@@ -15,7 +15,7 @@ public class InstructionService(
 
     public async Task ProcessInstruction(string instruction, string channel, CancellationToken cancellationToken = default)
     {
-        if (!chatService.JoinedChannels.Any(c => c.Channel.Equals(channel)))
+        if (!chatService.JoinedChannels.Any(c => c.Equals(channel, StringComparison.CurrentCultureIgnoreCase)))
         {
             // Try to join
             await chatService.JoinChannel(channel, cancellationToken);

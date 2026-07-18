@@ -11,8 +11,3 @@ global using OpenAI.Assistants;
 global using OpenAI.Audio;
 global using System.Text.Json;
 global using System.Text.RegularExpressions;
-global using TwitchLib.Client.Models;
-global using TwitchLib.EventSub.Core.Models.ChannelPoints;
-global using TwitchLib.EventSub.Websockets;
-global using TwitchLib.EventSub.Websockets.Core.EventArgs;
-global using TwitchLib.EventSub.Websockets.Extensions;

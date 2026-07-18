@@ -69,9 +69,29 @@ app.MapGet("auth/status", (ITwitchTokenStore tokenStore, ITwitchWebSocketService
             : null;
 });
 
+app.MapPost("chat/messages", async (
+    SendChatMessageRequest request,
+    ITwitchChatService chatService,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Message))
+    {
+        return Results.BadRequest("Message must not be empty");
+    }
+
+    var result = await chatService.SendMessageAsync(request.Message, request.ReplyParentMessageId, cancellationToken);
+    return result.Sent
+        ? Results.Ok(new SendChatMessageResponse(result.Sent, result.MessageId, result.DropReason))
+        : Results.Problem(result.DropReason ?? "Message was not sent", statusCode: StatusCodes.Status502BadGateway);
+});
+
 app.Run();
 
 public record AuthCallbackRequest(string Code, string Scopes, string RedirectUri);
+
+public record SendChatMessageRequest(string Message, string? ReplyParentMessageId = null);
+
+public record SendChatMessageResponse(bool Sent, string? MessageId, string? DropReason);
 
 public record AuthCallbackResponse(string Role, string Login);
 

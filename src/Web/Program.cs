@@ -1,4 +1,3 @@
-using TwitchLib.Client.Interfaces;
 using Web.Components;
 using Web.Components.Services;
 

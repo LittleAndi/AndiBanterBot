@@ -35,6 +35,19 @@ else
     <a href='@streamerUrl'>Authorize Bot with stream account</a>
 </div>
 
+<div class="mb-3">
+    <h5>Send chat message</h5>
+    <div class="input-group" style="max-width: 480px;">
+        <input class="form-control" @bind="chatMessage" @bind:event="oninput"
+               placeholder="Message to the channel" @onkeyup="@(e => e.Key == "Enter" ? SendChat() : Task.CompletedTask)" />
+        <button class="btn btn-primary" @onclick="SendChat" disabled="@(sending || string.IsNullOrWhiteSpace(chatMessage))">Send</button>
+    </div>
+    @if (sendFeedback is not null)
+    {
+        <div class="form-text @(sendSucceeded ? "text-success" : "text-danger")">@sendFeedback</div>
+    }
+</div>
+
 @code {
     [Inject]
     private IConfiguration Configuration { get; set; } = default!;
@@ -42,6 +55,10 @@ else
     private string botUrl = string.Empty;
     private string streamerUrl = string.Empty;
     private AuthStatusResponse? status;
+    private string chatMessage = string.Empty;
+    private bool sending;
+    private bool sendSucceeded;
+    private string? sendFeedback;
 
     protected override void OnInitialized()
     {
@@ -60,6 +77,27 @@ else
         {
             status = await TwitchApiClient.GetAuthStatus();
             StateHasChanged();
+        }
+    }
+
+    private async Task SendChat()
+    {
+        if (sending || string.IsNullOrWhiteSpace(chatMessage)) return;
+
+        sending = true;
+        try
+        {
+            var result = await TwitchApiClient.SendChatMessage(chatMessage);
+            sendSucceeded = result.Sent;
+            sendFeedback = result.Sent ? "Message sent." : result.DropReason ?? "Message was not sent.";
+            if (result.Sent)
+            {
+                chatMessage = string.Empty;
+            }
+        }
+        finally
+        {
+            sending = false;
         }
     }
 

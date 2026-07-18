@@ -6,6 +6,7 @@ public interface ITwitchWebSocketService
     Task CloseAsync(CancellationToken cancellationToken = default);
     Task SubscribeToBroadcasterSubscriptions(CancellationToken cancellationToken = default);
     TwitchWebSocketStatus GetStatus();
+    event EventHandler<ChatMessageEvent>? ChatMessageReceived;
 }
 
 public record TwitchWebSocketStatus(bool Connected, string SessionId, DateTime LastMessageAtUtc, TimeSpan KeepaliveTimeout);
@@ -15,10 +16,10 @@ public class TwitchWebSocketService(
     IHttpClientFactory httpClientFactory,
     IConfiguration configuration,
     ITwitchTokenStore tokenStore,
+    ITwitchUserApi twitchUserApi,
     IHostApplicationLifetime hostApplicationLifetime,
     ILogger<TwitchWebSocketService> logger) : ITwitchWebSocketService
 {
-    private readonly HttpClient twitchHttpClientAppAccess = httpClientFactory.CreateClient("TwitchClientAppAccess");
     private readonly HttpClient twitchHttpClientUserAccess = httpClientFactory.CreateClient("TwitchClientUserAccess");
     private readonly string broadcasterUsername = configuration["Twitch:BroadcasterUsername"] ?? throw new InvalidOperationException("BroadcasterUsername not configured");
     private readonly string monitoredUsername = configuration["Twitch:MonitoredUsername"] ?? throw new InvalidOperationException("MonitoredUsername not configured");
@@ -34,6 +35,8 @@ public class TwitchWebSocketService(
     private string? pendingReconnectUrl;
     private bool resumingSession = false;
     private DateTime lastMessageAtUtc = DateTime.MinValue;
+
+    public event EventHandler<ChatMessageEvent>? ChatMessageReceived;
 
     public async Task Start(CancellationToken cancellationToken = default)
     {
@@ -111,45 +114,12 @@ public class TwitchWebSocketService(
 
     private async Task InitializeUserIds(CancellationToken cancellationToken)
     {
-        broadcasterId = await GetUserIdFromUsername(broadcasterUsername, cancellationToken);
-        userId = await GetUserIdFromUsername(monitoredUsername, cancellationToken);
+        broadcasterId = await twitchUserApi.GetUserIdAsync(broadcasterUsername, cancellationToken);
+        userId = await twitchUserApi.GetUserIdAsync(monitoredUsername, cancellationToken);
 
         if (string.IsNullOrEmpty(broadcasterId) || string.IsNullOrEmpty(userId))
         {
             throw new InvalidOperationException("Failed to get user IDs from usernames");
-        }
-    }
-
-    private async Task<string?> GetUserIdFromUsername(string username, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var response = await twitchHttpClientAppAccess.GetAsync($"helix/users?login={username}", cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.LogError("Failed to get user ID for {Username}. Status: {StatusCode}",
-                    username, response.StatusCode);
-                return null;
-            }
-
-            var content = await response.Content.ReadAsStringAsync(cancellationToken);
-            using var doc = JsonDocument.Parse(content);
-            var users = doc.RootElement.GetProperty("data");
-
-            if (users.GetArrayLength() == 0)
-            {
-                logger.LogError("User {Username} not found", username);
-                return null;
-            }
-
-            var userId = users[0].GetProperty("id").GetString();
-            logger.LogInformation("Retrieved user ID {UserId} for username {Username}", userId, username);
-            return userId;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error getting user ID for username {Username}", username);
-            return null;
         }
     }
 
@@ -215,9 +185,35 @@ public class TwitchWebSocketService(
             return;
         }
 
-        if (e.Response?.Metadata.MessageType == "channel.chat.message")
+        // Notifications carry the event type in metadata.subscription_type,
+        // metadata.message_type is always "notification"
+        if (e.Response?.Metadata.MessageType == "notification" &&
+            e.Response.Metadata.SubscriptionType == "channel.chat.message")
         {
-            logger.LogInformation("Chat message received: {Message}", e.RawMessage);
+            HandleChatMessage(e.RawMessage);
+        }
+    }
+
+    private void HandleChatMessage(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<ChatMessageNotification>(rawMessage);
+            var chatMessage = notification?.Payload.Event;
+            if (chatMessage is null)
+            {
+                logger.LogWarning("channel.chat.message notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Chat #{Broadcaster} {Chatter}: {Text}",
+                chatMessage.BroadcasterUserLogin, chatMessage.ChatterUserName, chatMessage.Message.Text);
+
+            ChatMessageReceived?.Invoke(this, chatMessage);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.chat.message notification");
         }
     }
 
