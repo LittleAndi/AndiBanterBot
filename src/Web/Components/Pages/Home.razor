@@ -14,6 +14,14 @@
 
     <div class="dashboard-grid">
         <StreamStatusTile Status="streamStatus" Loading="loading" />
+        @if (hypeTrainStatus is { IsActive: true } hypeTrain)
+        {
+            <ProgressTile Label="Hype Train" Icon="🚂" Detail="@($"Level {hypeTrain.Level}")" Current="hypeTrain.Progress" Target="hypeTrain.Goal" />
+        }
+        @if (goalStatus is { IsActive: true } goal)
+        {
+            <ProgressTile Label="Community Goal" Icon="🎯" Detail="@GoalTypeLabel(goal.Type)" Current="goal.CurrentAmount" Target="goal.TargetAmount" />
+        }
         <AccountCard Title="Bot account" Role="status?.Bot" AuthorizeUrl="@botUrl" ActionLabel="Log in with bot account" />
         <AccountCard Title="Broadcaster account" Role="status?.Broadcaster" AuthorizeUrl="@streamerUrl" ActionLabel="Log in with broadcaster account" />
         <ChatSendBox />
@@ -34,6 +42,8 @@
 @code {
     private AuthStatusResponse? status;
     private StreamStatusResponse? streamStatus;
+    private HypeTrainStatusResponse? hypeTrainStatus;
+    private GoalStatusResponse? goalStatus;
     private ActivityFeedItem[]? activity;
     private bool loading = true;
     private bool refreshing;
@@ -61,14 +71,29 @@
     {
         var statusTask = TwitchApiClient.GetAuthStatus();
         var streamStatusTask = TwitchApiClient.GetStreamStatus();
+        var hypeTrainStatusTask = TwitchApiClient.GetHypeTrainStatus();
+        var goalStatusTask = TwitchApiClient.GetGoalStatus();
         var activityTask = TwitchApiClient.GetRecentActivity();
-        await Task.WhenAll(statusTask, streamStatusTask, activityTask);
+        await Task.WhenAll(statusTask, streamStatusTask, hypeTrainStatusTask, goalStatusTask, activityTask);
 
         status = statusTask.Result;
         streamStatus = streamStatusTask.Result;
+        hypeTrainStatus = hypeTrainStatusTask.Result;
+        goalStatus = goalStatusTask.Result;
         activity = activityTask.Result;
         loading = false;
     }
+
+    // Twitch goal `type` values are terse identifiers, not display text.
+    private static string GoalTypeLabel(string type) => type switch
+    {
+        "follow" => "Follower goal",
+        "subscription" => "Subscription points goal",
+        "subscription_count" => "Subscriber count goal",
+        "new_subscription" => "New subscription points goal",
+        "new_subscription_count" => "New subscriber count goal",
+        _ => "Community goal"
+    };
 
     private async Task RetryStatus()
     {

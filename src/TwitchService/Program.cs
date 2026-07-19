@@ -81,6 +81,22 @@ app.MapGet("stream/status", (ITwitchWebSocketService twitchWebSocketService) =>
     return Results.Ok(new StreamStatusResponse(status.IsLive, status.StartedAt));
 });
 
+app.MapGet("hype-train/status", (ITwitchWebSocketService twitchWebSocketService) =>
+{
+    var status = twitchWebSocketService.GetHypeTrainStatus();
+    return Results.Ok(status is null
+        ? new HypeTrainStatusResponse(false, 0, 0, 0)
+        : new HypeTrainStatusResponse(true, status.Level, status.Progress, status.Goal));
+});
+
+app.MapGet("goal/status", (ITwitchWebSocketService twitchWebSocketService) =>
+{
+    var status = twitchWebSocketService.GetGoalStatus();
+    return Results.Ok(status is null
+        ? new GoalStatusResponse(false, string.Empty, string.Empty, 0, 0)
+        : new GoalStatusResponse(true, status.Type, status.Description, status.CurrentAmount, status.TargetAmount));
+});
+
 app.MapGet("activity/recent", (ITwitchActivityFeedService activityFeedService) =>
 {
     var items = activityFeedService.GetRecent()
@@ -133,5 +149,9 @@ public record ConnectionStatus(bool Connected, DateTime? LastMessageAtUtc);
 public record AuthStatusResponse(RoleStatus? Bot, RoleStatus? Broadcaster, ConnectionStatus BotConnection, ConnectionStatus BroadcasterConnection);
 
 public record StreamStatusResponse(bool? IsLive, DateTimeOffset? StartedAt);
+
+public record HypeTrainStatusResponse(bool IsActive, int Level, int Progress, int Goal);
+
+public record GoalStatusResponse(bool IsActive, string Type, string Description, int CurrentAmount, int TargetAmount);
 
 public record ActivityFeedItem(string Kind, DateTimeOffset OccurredAt, string DisplayName, string Summary);

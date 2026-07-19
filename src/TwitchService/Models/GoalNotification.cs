@@ -87,3 +87,9 @@ public record GoalEndEvent
     [JsonPropertyName("ended_at")]
     public DateTimeOffset EndedAt { get; init; }
 }
+
+/// <summary>
+/// Current community goal state as known to the service, or null when no goal is active.
+/// Set from begin/progress notifications and cleared on end.
+/// </summary>
+public record GoalStatusSnapshot(string Type, string Description, int CurrentAmount, int TargetAmount);

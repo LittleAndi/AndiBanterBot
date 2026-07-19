@@ -7,6 +7,8 @@ public interface ITwitchWebSocketService
     Task SubscribeToBroadcasterSubscriptions(CancellationToken cancellationToken = default);
     TwitchWebSocketStatus GetStatus(TwitchUserRole role);
     StreamStatusSnapshot GetStreamStatus();
+    HypeTrainStatusSnapshot? GetHypeTrainStatus();
+    GoalStatusSnapshot? GetGoalStatus();
     event EventHandler<ChatMessageEvent>? ChatMessageReceived;
     event EventHandler<RewardRedemptionEvent>? RewardRedemptionReceived;
     event EventHandler<StreamStatusChangedEvent>? StreamStatusChanged;
@@ -58,6 +60,8 @@ public class TwitchWebSocketService(
     private string? broadcasterId;
     private string? userId;
     private StreamStatusSnapshot streamStatus = StreamStatusSnapshot.Unknown;
+    private HypeTrainStatusSnapshot? hypeTrainStatus;
+    private GoalStatusSnapshot? goalStatus;
 
     // Each entry is a self-contained addition: a new subscription type gets its own
     // handler method and its own line here, instead of a shared branch everyone touches.
@@ -165,6 +169,10 @@ public class TwitchWebSocketService(
     }
 
     public StreamStatusSnapshot GetStreamStatus() => streamStatus;
+
+    public HypeTrainStatusSnapshot? GetHypeTrainStatus() => hypeTrainStatus;
+
+    public GoalStatusSnapshot? GetGoalStatus() => goalStatus;
 
     private void EnsureNotificationHandlersBuilt()
     {
@@ -581,6 +589,8 @@ public class TwitchWebSocketService(
             logger.LogInformation("Hype train started #{Broadcaster}: level {Level}, {Progress}/{Goal}",
                 hypeTrain.BroadcasterUserLogin, hypeTrain.Level, hypeTrain.Progress, hypeTrain.Goal);
 
+            hypeTrainStatus = new HypeTrainStatusSnapshot(hypeTrain.Level, hypeTrain.Total, hypeTrain.Progress, hypeTrain.Goal);
+
             HypeTrainBeginReceived?.Invoke(this, hypeTrain);
         }
         catch (Exception ex)
@@ -603,6 +613,8 @@ public class TwitchWebSocketService(
 
             logger.LogInformation("Hype train progress #{Broadcaster}: level {Level}, {Progress}/{Goal}",
                 hypeTrain.BroadcasterUserLogin, hypeTrain.Level, hypeTrain.Progress, hypeTrain.Goal);
+
+            hypeTrainStatus = new HypeTrainStatusSnapshot(hypeTrain.Level, hypeTrain.Total, hypeTrain.Progress, hypeTrain.Goal);
 
             HypeTrainProgressReceived?.Invoke(this, hypeTrain);
         }
@@ -627,6 +639,8 @@ public class TwitchWebSocketService(
             logger.LogInformation("Hype train ended #{Broadcaster}: level {Level}, {Total} total",
                 hypeTrain.BroadcasterUserLogin, hypeTrain.Level, hypeTrain.Total);
 
+            hypeTrainStatus = null;
+
             HypeTrainEndReceived?.Invoke(this, hypeTrain);
         }
         catch (Exception ex)
@@ -649,6 +663,8 @@ public class TwitchWebSocketService(
 
             logger.LogInformation("Goal started #{Broadcaster}: {Type} {Current}/{Target}",
                 goal.BroadcasterUserLogin, goal.Type, goal.CurrentAmount, goal.TargetAmount);
+
+            goalStatus = new GoalStatusSnapshot(goal.Type, goal.Description, goal.CurrentAmount, goal.TargetAmount);
 
             GoalBeginReceived?.Invoke(this, goal);
         }
@@ -673,6 +689,8 @@ public class TwitchWebSocketService(
             logger.LogInformation("Goal progress #{Broadcaster}: {Type} {Current}/{Target}",
                 goal.BroadcasterUserLogin, goal.Type, goal.CurrentAmount, goal.TargetAmount);
 
+            goalStatus = new GoalStatusSnapshot(goal.Type, goal.Description, goal.CurrentAmount, goal.TargetAmount);
+
             GoalProgressReceived?.Invoke(this, goal);
         }
         catch (Exception ex)
@@ -695,6 +713,8 @@ public class TwitchWebSocketService(
 
             logger.LogInformation("Goal ended #{Broadcaster}: {Type} {Current}/{Target} (achieved: {IsAchieved})",
                 goal.BroadcasterUserLogin, goal.Type, goal.CurrentAmount, goal.TargetAmount, goal.IsAchieved);
+
+            goalStatus = null;
 
             GoalEndReceived?.Invoke(this, goal);
         }

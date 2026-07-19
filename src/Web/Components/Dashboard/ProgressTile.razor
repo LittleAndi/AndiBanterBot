@@ -1,0 +1,33 @@
+@using System.Globalization
+
+<div class="progress-tile">
+    <span class="progress-icon" aria-hidden="true">@Icon</span>
+    <div class="progress-body">
+        <div class="progress-header">
+            <span class="progress-label">@Label</span>
+            @if (!string.IsNullOrEmpty(Detail))
+            {
+                <span class="progress-detail">@Detail</span>
+            }
+        </div>
+        <div class="progress-track"
+             role="progressbar"
+             aria-valuenow="@Current"
+             aria-valuemin="0"
+             aria-valuemax="@Math.Max(Target, Current)"
+             aria-label="@($"{Label} progress: {Current:N0} of {Target:N0}")">
+            <div class="progress-fill" style="transform: scaleX(@((PercentWidth / 100).ToString(CultureInfo.InvariantCulture)))"></div>
+        </div>
+        <span class="progress-numbers mono">@Current.ToString("N0") / @Target.ToString("N0")</span>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Icon { get; set; } = string.Empty;
+    [Parameter] public string? Detail { get; set; }
+    [Parameter, EditorRequired] public int Current { get; set; }
+    [Parameter, EditorRequired] public int Target { get; set; }
+
+    private double PercentWidth => Target > 0 ? Math.Clamp(Current * 100.0 / Target, 0, 100) : 0;
+}

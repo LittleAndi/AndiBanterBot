@@ -43,6 +43,36 @@ public class TwitchApiClient(IHttpClientFactory httpClientFactory)
 
     // Same reasoning as GetAuthStatus: fail fast toward "unreachable" instead of
     // waiting out the standard resilience handler's retry budget.
+    public async Task<HypeTrainStatusResponse?> GetHypeTrainStatus()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            return await httpClient.GetFromJsonAsync<HypeTrainStatusResponse>("hype-train/status", cts.Token);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    // Same reasoning as GetAuthStatus: fail fast toward "unreachable" instead of
+    // waiting out the standard resilience handler's retry budget.
+    public async Task<GoalStatusResponse?> GetGoalStatus()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            return await httpClient.GetFromJsonAsync<GoalStatusResponse>("goal/status", cts.Token);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    // Same reasoning as GetAuthStatus: fail fast toward "unreachable" instead of
+    // waiting out the standard resilience handler's retry budget.
     public async Task<ActivityFeedItem[]?> GetRecentActivity()
     {
         try
@@ -90,5 +120,9 @@ public record ConnectionStatus(bool Connected, DateTime? LastMessageAtUtc);
 public record AuthStatusResponse(RoleStatus? Bot, RoleStatus? Broadcaster, ConnectionStatus BotConnection, ConnectionStatus BroadcasterConnection);
 
 public record StreamStatusResponse(bool? IsLive, DateTimeOffset? StartedAt);
+
+public record HypeTrainStatusResponse(bool IsActive, int Level, int Progress, int Goal);
+
+public record GoalStatusResponse(bool IsActive, string Type, string Description, int CurrentAmount, int TargetAmount);
 
 public record ActivityFeedItem(string Kind, DateTimeOffset OccurredAt, string DisplayName, string Summary);
