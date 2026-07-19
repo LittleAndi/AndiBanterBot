@@ -41,6 +41,8 @@
 
     <ModerationLogPanel Items="moderationLog" Loading="loading" />
 
+    <RewardsPanel Items="rewards" Loading="loading" OnToggled="HandleRewardToggled" />
+
     <section class="coming-soon">
         <h2 class="coming-soon-title">More on the way</h2>
         <ul class="coming-soon-list">
@@ -60,6 +62,7 @@
     private PredictionStatusResponse? predictionStatus;
     private ActivityFeedItem[]? activity;
     private ModerationLogItem[]? moderationLog;
+    private RewardItem[]? rewards;
     private bool loading = true;
     private bool refreshing;
     private string botUrl = string.Empty;
@@ -92,7 +95,8 @@
         var predictionStatusTask = TwitchApiClient.GetPredictionStatus();
         var activityTask = TwitchApiClient.GetRecentActivity();
         var moderationLogTask = TwitchApiClient.GetRecentModerationLog();
-        await Task.WhenAll(statusTask, streamStatusTask, hypeTrainStatusTask, goalStatusTask, pollStatusTask, predictionStatusTask, activityTask, moderationLogTask);
+        var rewardsTask = TwitchApiClient.GetRewards();
+        await Task.WhenAll(statusTask, streamStatusTask, hypeTrainStatusTask, goalStatusTask, pollStatusTask, predictionStatusTask, activityTask, moderationLogTask, rewardsTask);
 
         status = statusTask.Result;
         streamStatus = streamStatusTask.Result;
@@ -102,7 +106,20 @@
         predictionStatus = predictionStatusTask.Result;
         activity = activityTask.Result;
         moderationLog = moderationLogTask.Result;
+        rewards = rewardsTask.Result;
         loading = false;
+    }
+
+    // A pause/unpause toggle is a one-off write, not gated by the 15s poll cycle - update the
+    // affected reward in place so the toggle reflects instantly instead of waiting for the next tick.
+    private void HandleRewardToggled(RewardItem updated)
+    {
+        if (rewards is null)
+        {
+            return;
+        }
+
+        rewards = [.. rewards.Select(r => r.Id == updated.Id ? updated : r)];
     }
 
     // Twitch goal `type` values are terse identifiers, not display text.

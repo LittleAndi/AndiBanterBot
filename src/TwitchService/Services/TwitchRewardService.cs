@@ -2,6 +2,7 @@ namespace Application.Features.Twitch;
 
 public interface ITwitchRewardService
 {
+    Task<RewardListResult> GetRewardsAsync(CancellationToken cancellationToken = default);
     Task<RewardOperationResult> CreateRewardAsync(CreateRewardRequest request, CancellationToken cancellationToken = default);
     Task<RewardOperationResult> UpdateRewardAsync(string rewardId, UpdateRewardRequest request, CancellationToken cancellationToken = default);
     Task<RewardOperationResult> SetPausedAsync(string rewardId, bool isPaused, CancellationToken cancellationToken = default);
@@ -37,6 +38,8 @@ public record CustomReward(
 
 public record RewardOperationResult(bool Success, CustomReward? Reward, string? Error);
 
+public record RewardListResult(bool Success, IReadOnlyList<CustomReward> Rewards, string? Error);
+
 /// <summary>
 /// Creates, updates, and pauses/unpauses channel points custom rewards through the Helix
 /// Channel Points API (POST/PATCH /helix/channel_points/custom_rewards). Unlike chat send and
@@ -52,6 +55,31 @@ public class TwitchRewardService(
 {
     private readonly HttpClient twitchHttpClientUserAccess = httpClientFactory.CreateClient("TwitchClientUserAccess");
     private readonly string broadcasterUsername = configuration["Twitch:BroadcasterUsername"] ?? throw new InvalidOperationException("BroadcasterUsername not configured");
+
+    public async Task<RewardListResult> GetRewardsAsync(CancellationToken cancellationToken = default)
+    {
+        var broadcasterId = await twitchUserApi.GetUserIdAsync(broadcasterUsername, cancellationToken);
+        if (broadcasterId is null)
+        {
+            return new RewardListResult(false, [], $"Could not resolve broadcaster id for {broadcasterUsername}");
+        }
+
+        var httpRequest = new HttpRequestMessage(HttpMethod.Get, $"helix/channel_points/custom_rewards?broadcaster_id={broadcasterId}");
+        httpRequest.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+
+        var response = await twitchHttpClientUserAccess.SendAsync(httpRequest, cancellationToken);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            logger.LogError("Failed to list custom rewards. Status: {StatusCode}, Response: {Response}", response.StatusCode, content);
+            return new RewardListResult(false, [], $"Twitch returned {(int)response.StatusCode}: {content}");
+        }
+
+        using var doc = JsonDocument.Parse(content);
+        var rewards = doc.RootElement.GetProperty("data").EnumerateArray().Select(ParseReward).ToArray();
+        return new RewardListResult(true, rewards, null);
+    }
 
     public async Task<RewardOperationResult> CreateRewardAsync(CreateRewardRequest request, CancellationToken cancellationToken = default)
     {

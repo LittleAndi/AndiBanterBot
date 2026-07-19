@@ -157,6 +157,16 @@ app.MapPost("chat/messages", async (
     return Results.Problem(result.DropReason ?? "Message was not sent", statusCode: StatusCodes.Status502BadGateway);
 });
 
+app.MapGet("rewards", async (
+    ITwitchRewardService rewardService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await rewardService.GetRewardsAsync(cancellationToken);
+    return result.Success
+        ? Results.Ok(result.Rewards.Select(ToRewardResponse).ToArray())
+        : Results.Problem(result.Error ?? "Failed to list rewards", statusCode: StatusCodes.Status502BadGateway);
+});
+
 app.MapPost("rewards", async (
     CreateRewardHttpRequest request,
     ITwitchRewardService rewardService,
