@@ -131,6 +131,43 @@ public class TwitchApiClient(IHttpClientFactory httpClientFactory)
         }
     }
 
+    // Same reasoning as GetAuthStatus: fail fast toward "unreachable" instead of
+    // waiting out the standard resilience handler's retry budget.
+    public async Task<RewardItem[]?> GetRewards()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            return await httpClient.GetFromJsonAsync<RewardItem[]>("rewards", cts.Token);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<SetRewardPausedResult> SetRewardPaused(string rewardId, bool isPaused)
+    {
+        try
+        {
+            var response = await httpClient.PatchAsJsonAsync($"rewards/{rewardId}/pause", new SetRewardPausedRequest(isPaused));
+            if (response.IsSuccessStatusCode)
+            {
+                var reward = await response.Content.ReadFromJsonAsync<RewardItem>();
+                return reward is not null
+                    ? new SetRewardPausedResult(true, reward, null)
+                    : new SetRewardPausedResult(false, null, "Empty response from Twitch service");
+            }
+
+            var error = await response.Content.ReadAsStringAsync();
+            return new SetRewardPausedResult(false, null, $"Twitch service returned {(int)response.StatusCode}: {error}");
+        }
+        catch (HttpRequestException ex)
+        {
+            return new SetRewardPausedResult(false, null, $"Could not reach the Twitch service: {ex.Message}");
+        }
+    }
+
     public async Task<SendChatMessageResponse> SendChatMessage(string message)
     {
         try
@@ -181,3 +218,9 @@ public record PredictionStatusResponse(bool IsActive, string Title, bool Locked,
 public record ActivityFeedItem(string Kind, DateTimeOffset OccurredAt, string DisplayName, string Summary);
 
 public record ModerationLogItem(string Kind, DateTimeOffset OccurredAt, string ModeratorName, string TargetName, string Summary);
+
+public record RewardItem(string Id, string Title, int Cost, string Prompt, bool IsEnabled, bool IsPaused, string BackgroundColor);
+
+public record SetRewardPausedRequest(bool IsPaused);
+
+public record SetRewardPausedResult(bool Success, RewardItem? Reward, string? Error);

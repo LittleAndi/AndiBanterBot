@@ -1,0 +1,83 @@
+@using Web.Components.Services
+@inject TwitchApiClient TwitchApiClient
+
+<div class="rewards-panel">
+    <h2 class="rewards-title">Channel point rewards</h2>
+
+    @if (Loading)
+    {
+        <ul class="rewards-list" aria-hidden="true">
+            <li class="rewards-item rewards-item--skeleton"></li>
+            <li class="rewards-item rewards-item--skeleton"></li>
+            <li class="rewards-item rewards-item--skeleton"></li>
+        </ul>
+    }
+    else if (Items is null)
+    {
+        <p class="rewards-empty">Can't reach the rewards list right now.</p>
+    }
+    else if (Items.Count == 0)
+    {
+        <p class="rewards-empty">No custom rewards yet — create one on Twitch to see it here.</p>
+    }
+    else
+    {
+        <ul class="rewards-list">
+            @foreach (var reward in Items)
+            {
+                <li class="rewards-item @(reward.IsPaused ? "rewards-item--paused" : "")" @key="reward.Id">
+                    <span class="rewards-status" aria-hidden="true">@(reward.IsPaused ? "⏸️" : "▶️")</span>
+                    <span class="rewards-text">
+                        <span class="rewards-name">@reward.Title</span>
+                        <span class="rewards-meta">
+                            <span class="mono">@reward.Cost pts</span> · @(reward.IsPaused ? "Paused" : "Active")
+                        </span>
+                    </span>
+                    <button class="rewards-toggle" @onclick="() => TogglePause(reward)" disabled="@togglingIds.Contains(reward.Id)">
+                        @(togglingIds.Contains(reward.Id) ? "…" : (reward.IsPaused ? "Unpause" : "Pause"))
+                    </button>
+                </li>
+            }
+        </ul>
+    }
+
+    @if (errorMessage is not null)
+    {
+        <p class="rewards-feedback rewards-feedback--error">@errorMessage</p>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<RewardItem>? Items { get; set; }
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public EventCallback<RewardItem> OnToggled { get; set; }
+
+    private readonly HashSet<string> togglingIds = [];
+    private string? errorMessage;
+
+    private async Task TogglePause(RewardItem reward)
+    {
+        if (!togglingIds.Add(reward.Id))
+        {
+            return;
+        }
+
+        errorMessage = null;
+        try
+        {
+            var result = await TwitchApiClient.SetRewardPaused(reward.Id, !reward.IsPaused);
+            if (result.Success && result.Reward is not null)
+            {
+                await OnToggled.InvokeAsync(result.Reward);
+            }
+            else
+            {
+                errorMessage = result.Error ?? $"Couldn't update \"{reward.Title}\".";
+            }
+        }
+        finally
+        {
+            togglingIds.Remove(reward.Id);
+        }
+    }
+}
