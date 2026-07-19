@@ -7,7 +7,7 @@
 @inject TwitchApiClient TwitchApiClient
 @inject IConfiguration Configuration
 @inject IJSRuntime JSRuntime
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>OAuth Callback</PageTitle>
 
