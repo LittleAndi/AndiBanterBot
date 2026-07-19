@@ -8,6 +8,7 @@ public interface ITwitchWebSocketService
     TwitchWebSocketStatus GetStatus();
     event EventHandler<ChatMessageEvent>? ChatMessageReceived;
     event EventHandler<RewardRedemptionEvent>? RewardRedemptionReceived;
+    event EventHandler<StreamStatusChangedEvent>? StreamStatusChanged;
 }
 
 public record TwitchWebSocketStatus(bool Connected, string SessionId, DateTime LastMessageAtUtc, TimeSpan KeepaliveTimeout);
@@ -45,6 +46,7 @@ public class TwitchWebSocketService(
 
     public event EventHandler<ChatMessageEvent>? ChatMessageReceived;
     public event EventHandler<RewardRedemptionEvent>? RewardRedemptionReceived;
+    public event EventHandler<StreamStatusChangedEvent>? StreamStatusChanged;
 
     public async Task Start(CancellationToken cancellationToken = default)
     {
@@ -62,6 +64,8 @@ public class TwitchWebSocketService(
                 {
                     ["channel.chat.message"] = HandleChatMessage,
                     ["channel.channel_points_custom_reward_redemption.add"] = HandleRewardRedemption,
+                    ["stream.online"] = HandleStreamOnline,
+                    ["stream.offline"] = HandleStreamOffline,
                 };
 
                 // Subscriptions created from the welcome message must survive the caller's
@@ -169,10 +173,12 @@ public class TwitchWebSocketService(
         if (tokenStore.HasToken(TwitchUserRole.Broadcaster))
         {
             await SubscribeToChannelPointsRedemption(sessionId, cancellationToken);
+            await SubscribeToStreamOnline(sessionId, cancellationToken);
+            await SubscribeToStreamOffline(sessionId, cancellationToken);
         }
         else
         {
-            logger.LogWarning("No broadcaster token stored, skipping channel points subscription. Log in with the broadcaster account to enable it.");
+            logger.LogWarning("No broadcaster token stored, skipping channel points and stream status subscriptions. Log in with the broadcaster account to enable them.");
         }
     }
 
@@ -258,6 +264,60 @@ public class TwitchWebSocketService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to parse channel.channel_points_custom_reward_redemption.add notification");
+        }
+    }
+
+    private void HandleStreamOnline(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<StreamOnlineNotification>(rawMessage);
+            var streamOnline = notification?.Payload.Event;
+            if (streamOnline is null)
+            {
+                logger.LogWarning("stream.online notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Stream online #{Broadcaster} (type: {Type})", streamOnline.BroadcasterUserLogin, streamOnline.Type);
+
+            StreamStatusChanged?.Invoke(this, new StreamStatusChangedEvent(
+                IsLive: true,
+                BroadcasterUserId: streamOnline.BroadcasterUserId,
+                BroadcasterUserLogin: streamOnline.BroadcasterUserLogin,
+                BroadcasterUserName: streamOnline.BroadcasterUserName,
+                StartedAt: streamOnline.StartedAt));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse stream.online notification");
+        }
+    }
+
+    private void HandleStreamOffline(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<StreamOfflineNotification>(rawMessage);
+            var streamOffline = notification?.Payload.Event;
+            if (streamOffline is null)
+            {
+                logger.LogWarning("stream.offline notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Stream offline #{Broadcaster}", streamOffline.BroadcasterUserLogin);
+
+            StreamStatusChanged?.Invoke(this, new StreamStatusChangedEvent(
+                IsLive: false,
+                BroadcasterUserId: streamOffline.BroadcasterUserId,
+                BroadcasterUserLogin: streamOffline.BroadcasterUserLogin,
+                BroadcasterUserName: streamOffline.BroadcasterUserName,
+                StartedAt: null));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse stream.offline notification");
         }
     }
 
@@ -352,14 +412,100 @@ public class TwitchWebSocketService(
         }
     }
 
+    private async Task SubscribeToStreamOnline(string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type = "stream.online",
+                version = "1",
+                condition = new
+                {
+                    broadcaster_user_id = broadcasterId,
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId,
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created stream.online subscription. Response: {Response}", content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating stream.online subscription");
+        }
+    }
+
+    private async Task SubscribeToStreamOffline(string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type = "stream.offline",
+                version = "1",
+                condition = new
+                {
+                    broadcaster_user_id = broadcasterId,
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId,
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created stream.offline subscription. Response: {Response}", content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating stream.offline subscription");
+        }
+    }
+
     public async Task SubscribeToBroadcasterSubscriptions(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(sessionId))
         {
-            logger.LogInformation("WebSocket session not established yet, channel points subscription will be created on welcome");
+            logger.LogInformation("WebSocket session not established yet, broadcaster subscriptions will be created on welcome");
             return;
         }
 
         await SubscribeToChannelPointsRedemption(sessionId: sessionId, cancellationToken);
+        await SubscribeToStreamOnline(sessionId: sessionId, cancellationToken);
+        await SubscribeToStreamOffline(sessionId: sessionId, cancellationToken);
     }
 }
