@@ -22,7 +22,6 @@ public class TwitchWebSocketService(
     ILogger<TwitchWebSocketService> logger) : ITwitchWebSocketService
 {
     private readonly HttpClient twitchHttpClientUserAccess = httpClientFactory.CreateClient("TwitchClientUserAccess");
-    private readonly HttpClient twitchHttpClientAppAccess = httpClientFactory.CreateClient("TwitchClientAppAccess");
     private readonly string broadcasterUsername = configuration["Twitch:BroadcasterUsername"] ?? throw new InvalidOperationException("BroadcasterUsername not configured");
     private readonly string monitoredUsername = configuration["Twitch:MonitoredUsername"] ?? throw new InvalidOperationException("MonitoredUsername not configured");
     private const int KeepaliveTimeoutSeconds = 60;
@@ -262,9 +261,11 @@ public class TwitchWebSocketService(
         }
     }
 
-    // Authenticated via the app-access client rather than the bot's user token: with the
-    // broadcaster's channel:bot grant and the bot's user:bot grant in place, Twitch allows
-    // an app access token (client id/secret only) to create this subscription.
+    // Twitch rejects EventSub subscriptions created over WebSocket transport when
+    // authenticated with an app access token ("invalid transport and auth combination"),
+    // even with the broadcaster's channel:bot and the bot's user:bot grants in place.
+    // The app-access model only applies to webhook-transport subscriptions and to plain
+    // Helix calls (e.g. chat send); WebSocket-delivered subscriptions require a user token.
     private async Task SubscribeToChannelChatMessages(string? sessionId, CancellationToken cancellationToken)
     {
         try
@@ -289,7 +290,8 @@ public class TwitchWebSocketService(
             {
                 Content = JsonContent.Create(subscriptionRequest)
             };
-            var response = await twitchHttpClientAppAccess.SendAsync(request, cancellationToken);
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Bot);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
             var content = await response.Content.ReadAsStringAsync(cancellationToken);
 
             if (!response.IsSuccessStatusCode)
