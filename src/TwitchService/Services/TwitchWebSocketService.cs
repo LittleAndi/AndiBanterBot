@@ -10,6 +10,7 @@ public interface ITwitchWebSocketService
     event EventHandler<ChatMessageEvent>? ChatMessageReceived;
     event EventHandler<RewardRedemptionEvent>? RewardRedemptionReceived;
     event EventHandler<StreamStatusChangedEvent>? StreamStatusChanged;
+    event EventHandler<RaidEvent>? RaidReceived;
 }
 
 public record TwitchWebSocketStatus(bool Connected, string SessionId, DateTime LastMessageAtUtc, TimeSpan KeepaliveTimeout);
@@ -50,6 +51,7 @@ public class TwitchWebSocketService(
     public event EventHandler<ChatMessageEvent>? ChatMessageReceived;
     public event EventHandler<RewardRedemptionEvent>? RewardRedemptionReceived;
     public event EventHandler<StreamStatusChangedEvent>? StreamStatusChanged;
+    public event EventHandler<RaidEvent>? RaidReceived;
 
     public async Task Start(CancellationToken cancellationToken = default)
     {
@@ -69,6 +71,7 @@ public class TwitchWebSocketService(
                     ["channel.channel_points_custom_reward_redemption.add"] = HandleRewardRedemption,
                     ["stream.online"] = HandleStreamOnline,
                     ["stream.offline"] = HandleStreamOffline,
+                    ["channel.raid"] = HandleRaid,
                 };
 
                 // Subscriptions created from the welcome message must survive the caller's
@@ -181,10 +184,11 @@ public class TwitchWebSocketService(
             await SubscribeToStreamOnline(sessionId, cancellationToken);
             await SubscribeToStreamOffline(sessionId, cancellationToken);
             await RefreshStreamStatusAsync(cancellationToken);
+            await SubscribeToChannelRaid(sessionId, cancellationToken);
         }
         else
         {
-            logger.LogWarning("No broadcaster token stored, skipping channel points and stream status subscriptions. Log in with the broadcaster account to enable them.");
+            logger.LogWarning("No broadcaster token stored, skipping channel points, stream status, and raid subscriptions. Log in with the broadcaster account to enable them.");
         }
     }
 
@@ -328,6 +332,29 @@ public class TwitchWebSocketService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to parse stream.offline notification");
+        }
+    }
+
+    private void HandleRaid(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<RaidNotification>(rawMessage);
+            var raid = notification?.Payload.Event;
+            if (raid is null)
+            {
+                logger.LogWarning("channel.raid notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Raid #{ToBroadcaster} from {FromBroadcaster} ({Viewers} viewers)",
+                raid.ToBroadcasterUserLogin, raid.FromBroadcasterUserLogin, raid.Viewers);
+
+            RaidReceived?.Invoke(this, raid);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.raid notification");
         }
     }
 
@@ -506,6 +533,51 @@ public class TwitchWebSocketService(
         }
     }
 
+    // Condition uses to_broadcaster_user_id (raids received by this channel), not
+    // broadcaster_user_id like the other subscriptions. No extra scope required beyond
+    // the broadcaster user token already used for WebSocket-transport subscriptions.
+    private async Task SubscribeToChannelRaid(string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type = "channel.raid",
+                version = "1",
+                condition = new
+                {
+                    to_broadcaster_user_id = broadcasterId,
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId,
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created channel.raid subscription. Response: {Response}", content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating channel.raid subscription");
+        }
+    }
+
     // stream.online/offline only fire on transitions, so a stream already live when the
     // service starts (or reconnects) would otherwise never be reflected. This Helix lookup
     // seeds the initial state; the EventSub handlers keep it current from there.
@@ -546,5 +618,6 @@ public class TwitchWebSocketService(
         await SubscribeToStreamOnline(sessionId: sessionId, cancellationToken);
         await SubscribeToStreamOffline(sessionId: sessionId, cancellationToken);
         await RefreshStreamStatusAsync(cancellationToken);
+        await SubscribeToChannelRaid(sessionId: sessionId, cancellationToken);
     }
 }
