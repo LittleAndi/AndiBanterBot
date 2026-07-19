@@ -27,7 +27,10 @@ public static class DependencyInjection
 
         services.AddSingleton<ITwitchUserApi, TwitchUserApi>();
         services.AddSingleton<ITwitchChatService, TwitchChatService>();
-        services.AddSingleton<IWebSocketClient, WebSocketClient>();
+        // Two independent WebSocket connections, one per Twitch user identity - see the
+        // comment on TwitchWebSocketService for why they can't share a single connection.
+        services.AddKeyedSingleton<IWebSocketClient, WebSocketClient>(TwitchUserRole.Bot);
+        services.AddKeyedSingleton<IWebSocketClient, WebSocketClient>(TwitchUserRole.Broadcaster);
         services.AddSingleton<ITwitchWebSocketService, TwitchWebSocketService>();
         services.AddHostedService<TwitchEventSubSupervisorService>();
         services.AddHostedService<TwitchActivityChatReactionService>();

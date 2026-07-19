@@ -32,10 +32,10 @@ app.MapPost("auth/callback", async (
         return Results.Problem(ex.Message, statusCode: StatusCodes.Status502BadGateway);
     }
 
-    // Connects and returns; no-op if the websocket is already connecting or connected
+    // Connects and returns; no-op if that role's websocket is already connecting or connected
     try
     {
-        await twitchWebSocketService.Start();
+        await twitchWebSocketService.Start(info.Role);
     }
     catch (Exception ex)
     {
@@ -55,18 +55,26 @@ app.MapPost("auth/callback", async (
 app.MapGet("auth/status", (ITwitchTokenStore tokenStore, ITwitchWebSocketService twitchWebSocketService) =>
 {
     var tokens = tokenStore.GetStatus();
-    var socket = twitchWebSocketService.GetStatus();
+    var botSocket = twitchWebSocketService.GetStatus(TwitchUserRole.Bot);
+    var broadcasterSocket = twitchWebSocketService.GetStatus(TwitchUserRole.Broadcaster);
+
+    // Bot and Broadcaster are two independent WebSocket sessions; connected/last-message
+    // here is an aggregate across both for callers that don't care which one.
+    var connected = botSocket.Connected || broadcasterSocket.Connected;
+    var lastMessageAtUtc = Max(botSocket.LastMessageAtUtc, broadcasterSocket.LastMessageAtUtc);
 
     return Results.Ok(new AuthStatusResponse(
         ToRoleStatus(tokens, TwitchUserRole.Bot),
         ToRoleStatus(tokens, TwitchUserRole.Broadcaster),
-        socket.Connected,
-        socket.LastMessageAtUtc == DateTime.MinValue ? null : socket.LastMessageAtUtc));
+        connected,
+        lastMessageAtUtc == DateTime.MinValue ? null : lastMessageAtUtc));
 
     static RoleStatus? ToRoleStatus(IReadOnlyDictionary<TwitchUserRole, TwitchTokenStatus> tokens, TwitchUserRole role)
         => tokens.TryGetValue(role, out var status)
             ? new RoleStatus(status.Login, status.NeedsLogin, status.Scopes)
             : null;
+
+    static DateTime Max(DateTime a, DateTime b) => a > b ? a : b;
 });
 
 app.MapGet("stream/status", (ITwitchWebSocketService twitchWebSocketService) =>
