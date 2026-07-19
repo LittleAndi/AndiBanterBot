@@ -29,6 +29,8 @@
 
     <ActivityFeedPanel Items="activity" Loading="loading" />
 
+    <ModerationLogPanel Items="moderationLog" Loading="loading" />
+
     <section class="coming-soon">
         <h2 class="coming-soon-title">More on the way</h2>
         <ul class="coming-soon-list">
@@ -45,6 +47,7 @@
     private HypeTrainStatusResponse? hypeTrainStatus;
     private GoalStatusResponse? goalStatus;
     private ActivityFeedItem[]? activity;
+    private ModerationLogItem[]? moderationLog;
     private bool loading = true;
     private bool refreshing;
     private string botUrl = string.Empty;
@@ -74,13 +77,15 @@
         var hypeTrainStatusTask = TwitchApiClient.GetHypeTrainStatus();
         var goalStatusTask = TwitchApiClient.GetGoalStatus();
         var activityTask = TwitchApiClient.GetRecentActivity();
-        await Task.WhenAll(statusTask, streamStatusTask, hypeTrainStatusTask, goalStatusTask, activityTask);
+        var moderationLogTask = TwitchApiClient.GetRecentModerationLog();
+        await Task.WhenAll(statusTask, streamStatusTask, hypeTrainStatusTask, goalStatusTask, activityTask, moderationLogTask);
 
         status = statusTask.Result;
         streamStatus = streamStatusTask.Result;
         hypeTrainStatus = hypeTrainStatusTask.Result;
         goalStatus = goalStatusTask.Result;
         activity = activityTask.Result;
+        moderationLog = moderationLogTask.Result;
         loading = false;
     }
 

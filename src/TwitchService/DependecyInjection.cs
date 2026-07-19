@@ -39,6 +39,10 @@ public static class DependencyInjection
         services.AddSingleton<ITwitchActivityFeedService>(sp => sp.GetRequiredService<TwitchActivityFeedService>());
         services.AddHostedService(sp => sp.GetRequiredService<TwitchActivityFeedService>());
 
+        services.AddSingleton<TwitchModerationLogService>();
+        services.AddSingleton<ITwitchModerationLogService>(sp => sp.GetRequiredService<TwitchModerationLogService>());
+        services.AddHostedService(sp => sp.GetRequiredService<TwitchModerationLogService>());
+
         return services;
     }
 }

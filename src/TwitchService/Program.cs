@@ -105,6 +105,14 @@ app.MapGet("activity/recent", (ITwitchActivityFeedService activityFeedService) =
     return Results.Ok(items);
 });
 
+app.MapGet("moderation/recent", (ITwitchModerationLogService moderationLogService) =>
+{
+    var items = moderationLogService.GetRecent()
+        .Select(e => new ModerationLogItem(e.Kind.ToString(), e.OccurredAt, e.ModeratorName, e.TargetName, e.Summary))
+        .ToArray();
+    return Results.Ok(items);
+});
+
 app.MapPost("chat/messages", async (
     SendChatMessageRequest request,
     ITwitchChatService chatService,
@@ -155,3 +163,5 @@ public record HypeTrainStatusResponse(bool IsActive, int Level, int Progress, in
 public record GoalStatusResponse(bool IsActive, string Type, string Description, int CurrentAmount, int TargetAmount);
 
 public record ActivityFeedItem(string Kind, DateTimeOffset OccurredAt, string DisplayName, string Summary);
+
+public record ModerationLogItem(string Kind, DateTimeOffset OccurredAt, string ModeratorName, string TargetName, string Summary);

@@ -86,6 +86,21 @@ public class TwitchApiClient(IHttpClientFactory httpClientFactory)
         }
     }
 
+    // Same reasoning as GetAuthStatus: fail fast toward "unreachable" instead of
+    // waiting out the standard resilience handler's retry budget.
+    public async Task<ModerationLogItem[]?> GetRecentModerationLog()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            return await httpClient.GetFromJsonAsync<ModerationLogItem[]>("moderation/recent", cts.Token);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
     public async Task<SendChatMessageResponse> SendChatMessage(string message)
     {
         try
@@ -126,3 +141,5 @@ public record HypeTrainStatusResponse(bool IsActive, int Level, int Progress, in
 public record GoalStatusResponse(bool IsActive, string Type, string Description, int CurrentAmount, int TargetAmount);
 
 public record ActivityFeedItem(string Kind, DateTimeOffset OccurredAt, string DisplayName, string Summary);
+
+public record ModerationLogItem(string Kind, DateTimeOffset OccurredAt, string ModeratorName, string TargetName, string Summary);

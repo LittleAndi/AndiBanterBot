@@ -1,0 +1,71 @@
+@using Web.Components.Services
+
+<div class="moderation-panel">
+    <h2 class="moderation-title">Moderation log</h2>
+
+    @if (Loading)
+    {
+        <ul class="moderation-list" aria-hidden="true">
+            <li class="moderation-item moderation-item--skeleton"></li>
+            <li class="moderation-item moderation-item--skeleton"></li>
+            <li class="moderation-item moderation-item--skeleton"></li>
+        </ul>
+    }
+    else if (Items is null)
+    {
+        <p class="moderation-empty">Can't reach the moderation log right now.</p>
+    }
+    else if (Items.Count == 0)
+    {
+        <p class="moderation-empty">No moderation activity yet — bans, timeouts, and deletes will show up here as they happen.</p>
+    }
+    else
+    {
+        <ul class="moderation-list">
+            @foreach (var item in Items)
+            {
+                <li class="moderation-item" @key="ItemKey(item)">
+                    <span class="moderation-icon" aria-hidden="true">@Emoji(item.Kind)</span>
+                    <span class="moderation-text">
+                        <span class="moderation-name">@Label(item.Kind) @(string.IsNullOrEmpty(item.TargetName) ? "" : item.TargetName)</span>
+                        <span class="moderation-summary">@item.Summary — mod: @item.ModeratorName</span>
+                    </span>
+                    <time class="moderation-time mono" datetime="@item.OccurredAt.ToString("O")">@item.OccurredAt.ToLocalTime().ToString("t")</time>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<ModerationLogItem>? Items { get; set; }
+    [Parameter] public bool Loading { get; set; }
+
+    // Backend has no per-event id; kind + timestamp + target is stable and unique enough
+    // to key on, which keeps unchanged rows from re-animating on every poll tick.
+    private static string ItemKey(ModerationLogItem item) => $"{item.Kind}|{item.OccurredAt:O}|{item.TargetName}";
+
+    // Icons pair with the text label below rather than standing alone, so status is never
+    // conveyed by color/shape alone.
+    private static string Emoji(string kind) => kind switch
+    {
+        "Ban" => "🔨",
+        "Unban" => "🔓",
+        "Timeout" => "⏱️",
+        "Untimeout" => "✅",
+        "Delete" => "🗑️",
+        "Warn" => "⚠️",
+        _ => "🛠️"
+    };
+
+    private static string Label(string kind) => kind switch
+    {
+        "Ban" => "Banned",
+        "Unban" => "Unbanned",
+        "Timeout" => "Timed out",
+        "Untimeout" => "Timeout removed:",
+        "Delete" => "Message deleted:",
+        "Warn" => "Warned",
+        _ => "Mod action"
+    };
+}
