@@ -1,0 +1,58 @@
+@using Web.Components.Services
+
+<div class="activity-panel">
+    <h2 class="activity-title">Recent activity</h2>
+
+    @if (Loading)
+    {
+        <ul class="activity-list" aria-hidden="true">
+            <li class="activity-item activity-item--skeleton"></li>
+            <li class="activity-item activity-item--skeleton"></li>
+            <li class="activity-item activity-item--skeleton"></li>
+        </ul>
+    }
+    else if (Items is null)
+    {
+        <p class="activity-empty">Can't reach the activity feed right now.</p>
+    }
+    else if (Items.Count == 0)
+    {
+        <p class="activity-empty">No activity yet — follows, subs, cheers, and raids will show up here as they happen.</p>
+    }
+    else
+    {
+        <ul class="activity-list">
+            @foreach (var item in Items)
+            {
+                <li class="activity-item" @key="ItemKey(item)">
+                    <span class="activity-icon" aria-hidden="true">@Emoji(item.Kind)</span>
+                    <span class="activity-text">
+                        <span class="activity-name">@item.DisplayName</span>
+                        <span class="activity-summary">@item.Summary</span>
+                    </span>
+                    <time class="activity-time mono" datetime="@item.OccurredAt.ToString("O")">@item.OccurredAt.ToLocalTime().ToString("t")</time>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<ActivityFeedItem>? Items { get; set; }
+    [Parameter] public bool Loading { get; set; }
+
+    // Backend has no per-event id; kind + timestamp + name is stable and unique enough
+    // to key on, which keeps unchanged rows from re-animating on every poll tick.
+    private static string ItemKey(ActivityFeedItem item) => $"{item.Kind}|{item.OccurredAt:O}|{item.DisplayName}";
+
+    private static string Emoji(string kind) => kind switch
+    {
+        "Raid" => "🚨",
+        "Follow" => "👋",
+        "Subscribe" => "🎊",
+        "SubscriptionGift" => "🎁",
+        "Resubscribe" => "🔁",
+        "Cheer" => "💎",
+        _ => "✨"
+    };
+}

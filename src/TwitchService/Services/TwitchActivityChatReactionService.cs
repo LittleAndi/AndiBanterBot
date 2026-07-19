@@ -86,28 +86,20 @@ public class TwitchActivityChatReactionService(
         $"👋 {e.UserName} just followed! Welcome to the crew!";
 
     private static string BuildSubscribeMessage(SubscribeEvent e) =>
-        $"🎊 {e.UserName} just subscribed (Tier {TierLabel(e.Tier)})! Thank you so much!";
+        $"🎊 {e.UserName} just subscribed (Tier {SubscriptionTierLabel.For(e.Tier)})! Thank you so much!";
 
     private static string BuildSubscriptionGiftMessage(SubscriptionGiftEvent e)
     {
         var gifter = e.IsAnonymous ? "An anonymous legend" : e.UserName;
-        return $"🎁 {gifter} just gifted {e.Total} sub{(e.Total == 1 ? "" : "s")} (Tier {TierLabel(e.Tier)})! Absolute legend!";
+        return $"🎁 {gifter} just gifted {e.Total} sub{(e.Total == 1 ? "" : "s")} (Tier {SubscriptionTierLabel.For(e.Tier)})! Absolute legend!";
     }
 
     private static string BuildSubscriptionMessage(SubscriptionMessageEvent e) =>
-        $"🔁 {e.UserName} just resubscribed for {e.CumulativeMonths} months (Tier {TierLabel(e.Tier)})! Thanks for sticking around!";
+        $"🔁 {e.UserName} just resubscribed for {e.CumulativeMonths} months (Tier {SubscriptionTierLabel.For(e.Tier)})! Thanks for sticking around!";
 
     private static string BuildCheerMessage(CheerEvent e)
     {
         var cheerer = e.IsAnonymous ? "An anonymous cheerer" : e.UserName;
         return $"💎 {cheerer} just cheered {e.Bits} bit{(e.Bits == 1 ? "" : "s")}! Thanks for the support!";
     }
-
-    private static string TierLabel(string tier) => tier switch
-    {
-        "1000" => "1",
-        "2000" => "2",
-        "3000" => "3",
-        _ => tier
-    };
 }

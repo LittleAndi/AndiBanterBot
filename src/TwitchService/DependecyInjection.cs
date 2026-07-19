@@ -32,6 +32,10 @@ public static class DependencyInjection
         services.AddHostedService<TwitchEventSubSupervisorService>();
         services.AddHostedService<TwitchActivityChatReactionService>();
 
+        services.AddSingleton<TwitchActivityFeedService>();
+        services.AddSingleton<ITwitchActivityFeedService>(sp => sp.GetRequiredService<TwitchActivityFeedService>());
+        services.AddHostedService(sp => sp.GetRequiredService<TwitchActivityFeedService>());
+
         return services;
     }
 }
