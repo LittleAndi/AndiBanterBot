@@ -1,0 +1,21 @@
+.twitch-login {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+    max-width: 72rem;
+    padding-bottom: var(--space-2xl);
+}
+
+.twitch-login-title {
+    font-size: var(--text-xl);
+    font-weight: 600;
+    color: var(--color-ink);
+    margin: 0;
+}
+
+.twitch-login-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-md);
+    align-items: stretch;
+}
