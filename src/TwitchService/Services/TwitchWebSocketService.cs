@@ -16,6 +16,9 @@ public interface ITwitchWebSocketService
     event EventHandler<SubscriptionGiftEvent>? SubscriptionGiftReceived;
     event EventHandler<SubscriptionMessageEvent>? SubscriptionMessageReceived;
     event EventHandler<CheerEvent>? CheerReceived;
+    event EventHandler<HypeTrainEvent>? HypeTrainBeginReceived;
+    event EventHandler<HypeTrainEvent>? HypeTrainProgressReceived;
+    event EventHandler<HypeTrainEndEvent>? HypeTrainEndReceived;
 }
 
 public record TwitchWebSocketStatus(bool Connected, string SessionId, DateTime LastMessageAtUtc, TimeSpan KeepaliveTimeout);
@@ -70,6 +73,9 @@ public class TwitchWebSocketService(
     public event EventHandler<SubscriptionGiftEvent>? SubscriptionGiftReceived;
     public event EventHandler<SubscriptionMessageEvent>? SubscriptionMessageReceived;
     public event EventHandler<CheerEvent>? CheerReceived;
+    public event EventHandler<HypeTrainEvent>? HypeTrainBeginReceived;
+    public event EventHandler<HypeTrainEvent>? HypeTrainProgressReceived;
+    public event EventHandler<HypeTrainEndEvent>? HypeTrainEndReceived;
 
     // Per-connection mutable state. Everything that used to be an instance field tracking
     // "the" connection now lives here once per identity (Bot, Broadcaster).
@@ -170,6 +176,9 @@ public class TwitchWebSocketService(
             ["channel.subscription.gift"] = HandleSubscriptionGift,
             ["channel.subscription.message"] = HandleSubscriptionMessage,
             ["channel.cheer"] = HandleCheer,
+            ["channel.hype_train.begin"] = HandleHypeTrainBegin,
+            ["channel.hype_train.progress"] = HandleHypeTrainProgress,
+            ["channel.hype_train.end"] = HandleHypeTrainEnd,
         };
         notificationHandlersBuilt = true;
     }
@@ -259,6 +268,9 @@ public class TwitchWebSocketService(
             await SubscribeToChannelSubscriptionGift(connection.SessionId, cancellationToken);
             await SubscribeToChannelSubscriptionMessage(connection.SessionId, cancellationToken);
             await SubscribeToChannelCheer(connection.SessionId, cancellationToken);
+            await SubscribeToHypeTrainBegin(connection.SessionId, cancellationToken);
+            await SubscribeToHypeTrainProgress(connection.SessionId, cancellationToken);
+            await SubscribeToHypeTrainEnd(connection.SessionId, cancellationToken);
         }
     }
 
@@ -539,6 +551,75 @@ public class TwitchWebSocketService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to parse channel.cheer notification");
+        }
+    }
+
+    private void HandleHypeTrainBegin(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<HypeTrainNotification>(rawMessage);
+            var hypeTrain = notification?.Payload.Event;
+            if (hypeTrain is null)
+            {
+                logger.LogWarning("channel.hype_train.begin notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Hype train started #{Broadcaster}: level {Level}, {Progress}/{Goal}",
+                hypeTrain.BroadcasterUserLogin, hypeTrain.Level, hypeTrain.Progress, hypeTrain.Goal);
+
+            HypeTrainBeginReceived?.Invoke(this, hypeTrain);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.hype_train.begin notification");
+        }
+    }
+
+    private void HandleHypeTrainProgress(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<HypeTrainNotification>(rawMessage);
+            var hypeTrain = notification?.Payload.Event;
+            if (hypeTrain is null)
+            {
+                logger.LogWarning("channel.hype_train.progress notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Hype train progress #{Broadcaster}: level {Level}, {Progress}/{Goal}",
+                hypeTrain.BroadcasterUserLogin, hypeTrain.Level, hypeTrain.Progress, hypeTrain.Goal);
+
+            HypeTrainProgressReceived?.Invoke(this, hypeTrain);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.hype_train.progress notification");
+        }
+    }
+
+    private void HandleHypeTrainEnd(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<HypeTrainEndNotification>(rawMessage);
+            var hypeTrain = notification?.Payload.Event;
+            if (hypeTrain is null)
+            {
+                logger.LogWarning("channel.hype_train.end notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Hype train ended #{Broadcaster}: level {Level}, {Total} total",
+                hypeTrain.BroadcasterUserLogin, hypeTrain.Level, hypeTrain.Total);
+
+            HypeTrainEndReceived?.Invoke(this, hypeTrain);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.hype_train.end notification");
         }
     }
 
@@ -977,6 +1058,58 @@ public class TwitchWebSocketService(
         }
     }
 
+    // Requires channel:read:hype_train on the broadcaster token.
+    private async Task SubscribeToHypeTrainBegin(string? sessionId, CancellationToken cancellationToken) =>
+        await SubscribeToHypeTrain("channel.hype_train.begin", sessionId, cancellationToken);
+
+    private async Task SubscribeToHypeTrainProgress(string? sessionId, CancellationToken cancellationToken) =>
+        await SubscribeToHypeTrain("channel.hype_train.progress", sessionId, cancellationToken);
+
+    private async Task SubscribeToHypeTrainEnd(string? sessionId, CancellationToken cancellationToken) =>
+        await SubscribeToHypeTrain("channel.hype_train.end", sessionId, cancellationToken);
+
+    private async Task SubscribeToHypeTrain(string type, string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type,
+                version = "1",
+                condition = new
+                {
+                    broadcaster_user_id = broadcasterId,
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId,
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created {Type} subscription. Response: {Response}", type, content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating {Type} subscription", type);
+        }
+    }
+
     // stream.online/offline only fire on transitions, so a stream already live when the
     // service starts (or reconnects) would otherwise never be reflected. This Helix lookup
     // seeds the initial state; the EventSub handlers keep it current from there.
@@ -1023,5 +1156,8 @@ public class TwitchWebSocketService(
         await SubscribeToChannelSubscriptionGift(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToChannelSubscriptionMessage(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToChannelCheer(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToHypeTrainBegin(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToHypeTrainProgress(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToHypeTrainEnd(sessionId: broadcaster.SessionId, cancellationToken);
     }
 }

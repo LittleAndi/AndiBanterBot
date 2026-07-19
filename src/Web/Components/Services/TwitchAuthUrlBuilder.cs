@@ -28,6 +28,7 @@ public class TwitchAuthUrlBuilder(IConfiguration configuration)
         "channel:manage:predictions",
         "channel:manage:redemptions",
         "channel:read:ads",
+        "channel:read:hype_train",
         "channel:read:redemptions",
         "channel:read:subscriptions",
         "channel:read:vips",
