@@ -73,6 +73,36 @@ public class TwitchApiClient(IHttpClientFactory httpClientFactory)
 
     // Same reasoning as GetAuthStatus: fail fast toward "unreachable" instead of
     // waiting out the standard resilience handler's retry budget.
+    public async Task<PollStatusResponse?> GetPollStatus()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            return await httpClient.GetFromJsonAsync<PollStatusResponse>("poll/status", cts.Token);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    // Same reasoning as GetAuthStatus: fail fast toward "unreachable" instead of
+    // waiting out the standard resilience handler's retry budget.
+    public async Task<PredictionStatusResponse?> GetPredictionStatus()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            return await httpClient.GetFromJsonAsync<PredictionStatusResponse>("prediction/status", cts.Token);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    // Same reasoning as GetAuthStatus: fail fast toward "unreachable" instead of
+    // waiting out the standard resilience handler's retry budget.
     public async Task<ActivityFeedItem[]?> GetRecentActivity()
     {
         try
@@ -139,6 +169,14 @@ public record StreamStatusResponse(bool? IsLive, DateTimeOffset? StartedAt);
 public record HypeTrainStatusResponse(bool IsActive, int Level, int Progress, int Goal);
 
 public record GoalStatusResponse(bool IsActive, string Type, string Description, int CurrentAmount, int TargetAmount);
+
+public record PollChoiceResponse(string Title, int Votes);
+
+public record PollStatusResponse(bool IsActive, string Title, PollChoiceResponse[] Choices);
+
+public record PredictionOutcomeResponse(string Title, string Color, int Users, int ChannelPoints);
+
+public record PredictionStatusResponse(bool IsActive, string Title, bool Locked, PredictionOutcomeResponse[] Outcomes);
 
 public record ActivityFeedItem(string Kind, DateTimeOffset OccurredAt, string DisplayName, string Summary);
 

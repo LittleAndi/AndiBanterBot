@@ -129,3 +129,11 @@ public record PollEndEvent
     [JsonPropertyName("ended_at")]
     public DateTimeOffset EndedAt { get; init; }
 }
+
+/// <summary>
+/// Current poll state as known to the service, or null when no poll is active.
+/// Set from begin/progress notifications and cleared on end.
+/// </summary>
+public record PollStatusSnapshot(string Title, IReadOnlyList<PollChoiceStatus> Choices);
+
+public record PollChoiceStatus(string Title, int Votes);
