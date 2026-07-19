@@ -13,6 +13,43 @@ main {
     border-right: 1px solid var(--color-border);
 }
 
+.show-nav-button {
+    display: none;
+    appearance: none;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    color: var(--color-muted);
+    background-color: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    position: fixed;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: var(--z-sticky);
+    transition: background-color var(--duration-fast) var(--ease-out-quart), color var(--duration-fast) var(--ease-out-quart);
+}
+
+    .show-nav-button svg {
+        width: 1.1rem;
+        height: 1.1rem;
+        fill: currentColor;
+    }
+
+    .show-nav-button:hover,
+    .show-nav-button:focus-visible {
+        color: var(--color-ink);
+        background-color: var(--color-primary-dim);
+    }
+
+    .show-nav-button:focus-visible {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 1px;
+    }
+
 @media (min-width: 641px) {
     .page {
         flex-direction: row;
@@ -29,6 +66,14 @@ main {
         padding-left: 2rem !important;
         padding-right: 1.5rem !important;
         padding-top: 2rem !important;
+    }
+
+    :root.nav-hidden .sidebar {
+        display: none;
+    }
+
+    :root.nav-hidden .show-nav-button {
+        display: flex;
     }
 }
 
