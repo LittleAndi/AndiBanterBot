@@ -1,9 +1,10 @@
 @page "/pubsubcallback"
 @using System.Web
+@using Microsoft.AspNetCore.Components.Web
 @using Web.Components.Services
 @inject NavigationManager NavigationManager
 @inject TwitchApiClient TwitchApiClient
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Broadcaster OAuth Callback</PageTitle>
 

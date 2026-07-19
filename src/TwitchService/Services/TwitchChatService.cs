@@ -9,7 +9,8 @@ public record ChatSendResult(bool Sent, string? MessageId, string? DropReason, b
 
 /// <summary>
 /// Sends chat messages through the Helix API (POST /helix/chat/messages) as the
-/// bot account. Requires the bot token to carry the user:write:chat scope.
+/// bot account. Authenticates via an app access token, relying on the broadcaster's
+/// channel:bot grant and the bot's user:bot grant rather than a refreshed bot user token.
 /// </summary>
 public class TwitchChatService(
     IHttpClientFactory httpClientFactory,
@@ -18,7 +19,7 @@ public class TwitchChatService(
     ITwitchUserApi twitchUserApi,
     ILogger<TwitchChatService> logger) : ITwitchChatService
 {
-    private readonly HttpClient twitchHttpClientUserAccess = httpClientFactory.CreateClient("TwitchClientUserAccess");
+    private readonly HttpClient twitchHttpClientAppAccess = httpClientFactory.CreateClient("TwitchClientAppAccess");
     private readonly string broadcasterUsername = configuration["Twitch:BroadcasterUsername"] ?? throw new InvalidOperationException("BroadcasterUsername not configured");
 
     public async Task<ChatSendResult> SendMessageAsync(string message, string? replyParentMessageId = null, CancellationToken cancellationToken = default)
@@ -49,9 +50,8 @@ public class TwitchChatService(
         {
             Content = JsonContent.Create(body)
         };
-        request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Bot);
 
-        var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+        var response = await twitchHttpClientAppAccess.SendAsync(request, cancellationToken);
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
