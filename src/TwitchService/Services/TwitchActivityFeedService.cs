@@ -6,11 +6,11 @@ public interface ITwitchActivityFeedService
 }
 
 /// <summary>
-/// Buffers the six raid/follow/sub/gift/resub/cheer EventSub notifications in memory so the
-/// Web dashboard's activity feed panel has something to poll - nothing else durably tracks
-/// these events (see TwitchActivityChatReactionService, which only reacts to them in chat).
-/// The buffer is process-lifetime only: a TwitchService restart clears history, same as the
-/// dashboard's other status tiles which reflect live state rather than a persisted log.
+/// Buffers the raid/follow/sub/gift/resub/cheer/reward-redemption EventSub notifications in
+/// memory so the Web dashboard's activity feed panel has something to poll - nothing else
+/// durably tracks these events (see TwitchActivityChatReactionService, which only reacts to
+/// them in chat). The buffer is process-lifetime only: a TwitchService restart clears history,
+/// same as the dashboard's other status tiles which reflect live state rather than a persisted log.
 /// </summary>
 public class TwitchActivityFeedService(
     ITwitchWebSocketService twitchWebSocketService) : ITwitchActivityFeedService, IHostedService
@@ -27,6 +27,7 @@ public class TwitchActivityFeedService(
         twitchWebSocketService.SubscriptionGiftReceived += OnSubscriptionGiftReceived;
         twitchWebSocketService.SubscriptionMessageReceived += OnSubscriptionMessageReceived;
         twitchWebSocketService.CheerReceived += OnCheerReceived;
+        twitchWebSocketService.RewardRedemptionReceived += OnRewardRedemptionReceived;
         return Task.CompletedTask;
     }
 
@@ -38,6 +39,7 @@ public class TwitchActivityFeedService(
         twitchWebSocketService.SubscriptionGiftReceived -= OnSubscriptionGiftReceived;
         twitchWebSocketService.SubscriptionMessageReceived -= OnSubscriptionMessageReceived;
         twitchWebSocketService.CheerReceived -= OnCheerReceived;
+        twitchWebSocketService.RewardRedemptionReceived -= OnRewardRedemptionReceived;
         return Task.CompletedTask;
     }
 
@@ -78,6 +80,14 @@ public class TwitchActivityFeedService(
     {
         var cheerer = e.IsAnonymous ? "An anonymous cheerer" : e.UserName ?? "Someone";
         Add(ActivityEventKind.Cheer, cheerer, $"cheered {e.Bits} bit{(e.Bits == 1 ? "" : "s")}");
+    }
+
+    private void OnRewardRedemptionReceived(object? sender, RewardRedemptionEvent e)
+    {
+        var summary = string.IsNullOrWhiteSpace(e.UserInput)
+            ? $"redeemed \"{e.Reward.Title}\""
+            : $"redeemed \"{e.Reward.Title}\": \"{e.UserInput}\"";
+        Add(ActivityEventKind.RewardRedemption, e.UserName, summary, e.RedeemedAt);
     }
 
     private void Add(ActivityEventKind kind, string displayName, string summary, DateTimeOffset? occurredAt = null)
