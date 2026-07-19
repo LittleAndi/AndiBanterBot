@@ -178,3 +178,11 @@ public record PredictionEndEvent
     [JsonPropertyName("ended_at")]
     public DateTimeOffset EndedAt { get; init; }
 }
+
+/// <summary>
+/// Current prediction state as known to the service, or null when no prediction is active.
+/// Set from begin/progress notifications, updated (Locked: true) on lock, and cleared on end.
+/// </summary>
+public record PredictionStatusSnapshot(string Title, bool Locked, IReadOnlyList<PredictionOutcomeStatus> Outcomes);
+
+public record PredictionOutcomeStatus(string Title, string Color, int Users, int ChannelPoints);

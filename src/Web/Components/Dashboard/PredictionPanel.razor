@@ -1,0 +1,40 @@
+@using System.Globalization
+@using Web.Components.Services
+
+<div class="prediction-panel">
+    <div class="prediction-header">
+        <span class="prediction-icon" aria-hidden="true">🔮</span>
+        <h2 class="prediction-title">@Status!.Title</h2>
+        @if (Status.Locked)
+        {
+            <span class="prediction-locked">🔒 Locked</span>
+        }
+    </div>
+    <ul class="prediction-outcomes">
+        @foreach (var outcome in Status.Outcomes)
+        {
+            <li class="prediction-outcome" @key="outcome.Title">
+                <div class="prediction-outcome-header">
+                    <span class="prediction-outcome-label">@outcome.Title</span>
+                    <span class="prediction-outcome-stats mono">@outcome.ChannelPoints.ToString("N0") pts · @outcome.Users.ToString("N0") @(outcome.Users == 1 ? "predictor" : "predictors")</span>
+                </div>
+                <div class="prediction-outcome-track"
+                     role="progressbar"
+                     aria-valuenow="@outcome.ChannelPoints"
+                     aria-valuemin="0"
+                     aria-valuemax="@Math.Max(totalPoints, outcome.ChannelPoints)"
+                     aria-label="@($"{outcome.Title}: {outcome.ChannelPoints:N0} of {totalPoints:N0} points wagered")">
+                    <div class="prediction-outcome-fill" style="transform: scaleX(@(Share(outcome.ChannelPoints).ToString(CultureInfo.InvariantCulture)))"></div>
+                </div>
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PredictionStatusResponse? Status { get; set; }
+
+    private int totalPoints => Status?.Outcomes.Sum(o => o.ChannelPoints) ?? 0;
+
+    private double Share(int points) => totalPoints > 0 ? Math.Clamp(points / (double)totalPoints, 0, 1) : 0;
+}

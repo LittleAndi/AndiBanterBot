@@ -1,0 +1,37 @@
+@using System.Globalization
+@using Web.Components.Services
+
+<div class="poll-panel">
+    <div class="poll-header">
+        <span class="poll-icon" aria-hidden="true">🗳️</span>
+        <h2 class="poll-title">@Status!.Title</h2>
+        <span class="poll-total mono">@totalVotes.ToString("N0") votes</span>
+    </div>
+    <ul class="poll-choices">
+        @foreach (var choice in Status.Choices)
+        {
+            <li class="poll-choice" @key="choice.Title">
+                <div class="poll-choice-header">
+                    <span class="poll-choice-label">@choice.Title</span>
+                    <span class="poll-choice-votes mono">@choice.Votes.ToString("N0")</span>
+                </div>
+                <div class="poll-choice-track"
+                     role="progressbar"
+                     aria-valuenow="@choice.Votes"
+                     aria-valuemin="0"
+                     aria-valuemax="@Math.Max(totalVotes, choice.Votes)"
+                     aria-label="@($"{choice.Title}: {choice.Votes:N0} of {totalVotes:N0} votes")">
+                    <div class="poll-choice-fill" style="transform: scaleX(@(Share(choice.Votes).ToString(CultureInfo.InvariantCulture)))"></div>
+                </div>
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PollStatusResponse? Status { get; set; }
+
+    private int totalVotes => Status?.Choices.Sum(c => c.Votes) ?? 0;
+
+    private double Share(int votes) => totalVotes > 0 ? Math.Clamp(votes / (double)totalVotes, 0, 1) : 0;
+}

@@ -9,6 +9,8 @@ public interface ITwitchWebSocketService
     StreamStatusSnapshot GetStreamStatus();
     HypeTrainStatusSnapshot? GetHypeTrainStatus();
     GoalStatusSnapshot? GetGoalStatus();
+    PollStatusSnapshot? GetPollStatus();
+    PredictionStatusSnapshot? GetPredictionStatus();
     event EventHandler<ChatMessageEvent>? ChatMessageReceived;
     event EventHandler<RewardRedemptionEvent>? RewardRedemptionReceived;
     event EventHandler<StreamStatusChangedEvent>? StreamStatusChanged;
@@ -72,6 +74,8 @@ public class TwitchWebSocketService(
     private StreamStatusSnapshot streamStatus = StreamStatusSnapshot.Unknown;
     private HypeTrainStatusSnapshot? hypeTrainStatus;
     private GoalStatusSnapshot? goalStatus;
+    private PollStatusSnapshot? pollStatus;
+    private PredictionStatusSnapshot? predictionStatus;
 
     // Each entry is a self-contained addition: a new subscription type gets its own
     // handler method and its own line here, instead of a shared branch everyone touches.
@@ -193,6 +197,10 @@ public class TwitchWebSocketService(
     public HypeTrainStatusSnapshot? GetHypeTrainStatus() => hypeTrainStatus;
 
     public GoalStatusSnapshot? GetGoalStatus() => goalStatus;
+
+    public PollStatusSnapshot? GetPollStatus() => pollStatus;
+
+    public PredictionStatusSnapshot? GetPredictionStatus() => predictionStatus;
 
     private void EnsureNotificationHandlersBuilt()
     {
@@ -778,6 +786,8 @@ public class TwitchWebSocketService(
 
             logger.LogInformation("Poll started #{Broadcaster}: {Title}", poll.BroadcasterUserLogin, poll.Title);
 
+            pollStatus = ToPollStatusSnapshot(poll);
+
             PollBeginReceived?.Invoke(this, poll);
         }
         catch (Exception ex)
@@ -799,6 +809,8 @@ public class TwitchWebSocketService(
             }
 
             logger.LogInformation("Poll progress #{Broadcaster}: {Title}", poll.BroadcasterUserLogin, poll.Title);
+
+            pollStatus = ToPollStatusSnapshot(poll);
 
             PollProgressReceived?.Invoke(this, poll);
         }
@@ -823,6 +835,8 @@ public class TwitchWebSocketService(
             logger.LogInformation("Poll ended #{Broadcaster}: {Title} (status: {Status})",
                 poll.BroadcasterUserLogin, poll.Title, poll.Status);
 
+            pollStatus = null;
+
             PollEndReceived?.Invoke(this, poll);
         }
         catch (Exception ex)
@@ -830,6 +844,9 @@ public class TwitchWebSocketService(
             logger.LogError(ex, "Failed to parse channel.poll.end notification");
         }
     }
+
+    private static PollStatusSnapshot ToPollStatusSnapshot(PollEvent poll) =>
+        new(poll.Title, poll.Choices.Select(c => new PollChoiceStatus(c.Title, c.Votes)).ToList());
 
     private void HandlePredictionBegin(string rawMessage)
     {
@@ -844,6 +861,8 @@ public class TwitchWebSocketService(
             }
 
             logger.LogInformation("Prediction started #{Broadcaster}: {Title}", prediction.BroadcasterUserLogin, prediction.Title);
+
+            predictionStatus = ToPredictionStatusSnapshot(prediction, locked: false);
 
             PredictionBeginReceived?.Invoke(this, prediction);
         }
@@ -867,6 +886,8 @@ public class TwitchWebSocketService(
 
             logger.LogInformation("Prediction progress #{Broadcaster}: {Title}", prediction.BroadcasterUserLogin, prediction.Title);
 
+            predictionStatus = ToPredictionStatusSnapshot(prediction, locked: false);
+
             PredictionProgressReceived?.Invoke(this, prediction);
         }
         catch (Exception ex)
@@ -888,6 +909,9 @@ public class TwitchWebSocketService(
             }
 
             logger.LogInformation("Prediction locked #{Broadcaster}: {Title}", prediction.BroadcasterUserLogin, prediction.Title);
+
+            predictionStatus = new PredictionStatusSnapshot(prediction.Title, Locked: true,
+                prediction.Outcomes.Select(o => new PredictionOutcomeStatus(o.Title, o.Color, o.Users, o.ChannelPoints)).ToList());
 
             PredictionLockReceived?.Invoke(this, prediction);
         }
@@ -912,6 +936,8 @@ public class TwitchWebSocketService(
             logger.LogInformation("Prediction ended #{Broadcaster}: {Title} (status: {Status})",
                 prediction.BroadcasterUserLogin, prediction.Title, prediction.Status);
 
+            predictionStatus = null;
+
             PredictionEndReceived?.Invoke(this, prediction);
         }
         catch (Exception ex)
@@ -919,6 +945,9 @@ public class TwitchWebSocketService(
             logger.LogError(ex, "Failed to parse channel.prediction.end notification");
         }
     }
+
+    private static PredictionStatusSnapshot ToPredictionStatusSnapshot(PredictionEvent prediction, bool locked) =>
+        new(prediction.Title, locked, prediction.Outcomes.Select(o => new PredictionOutcomeStatus(o.Title, o.Color, o.Users, o.ChannelPoints)).ToList());
 
     private void HandleBan(string rawMessage)
     {

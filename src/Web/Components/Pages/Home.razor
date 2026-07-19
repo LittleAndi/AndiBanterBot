@@ -27,6 +27,16 @@
         <ChatSendBox />
     </div>
 
+    @if (pollStatus is { IsActive: true })
+    {
+        <PollPanel Status="pollStatus" />
+    }
+
+    @if (predictionStatus is { IsActive: true })
+    {
+        <PredictionPanel Status="predictionStatus" />
+    }
+
     <ActivityFeedPanel Items="activity" Loading="loading" />
 
     <ModerationLogPanel Items="moderationLog" Loading="loading" />
@@ -46,6 +56,8 @@
     private StreamStatusResponse? streamStatus;
     private HypeTrainStatusResponse? hypeTrainStatus;
     private GoalStatusResponse? goalStatus;
+    private PollStatusResponse? pollStatus;
+    private PredictionStatusResponse? predictionStatus;
     private ActivityFeedItem[]? activity;
     private ModerationLogItem[]? moderationLog;
     private bool loading = true;
@@ -76,14 +88,18 @@
         var streamStatusTask = TwitchApiClient.GetStreamStatus();
         var hypeTrainStatusTask = TwitchApiClient.GetHypeTrainStatus();
         var goalStatusTask = TwitchApiClient.GetGoalStatus();
+        var pollStatusTask = TwitchApiClient.GetPollStatus();
+        var predictionStatusTask = TwitchApiClient.GetPredictionStatus();
         var activityTask = TwitchApiClient.GetRecentActivity();
         var moderationLogTask = TwitchApiClient.GetRecentModerationLog();
-        await Task.WhenAll(statusTask, streamStatusTask, hypeTrainStatusTask, goalStatusTask, activityTask, moderationLogTask);
+        await Task.WhenAll(statusTask, streamStatusTask, hypeTrainStatusTask, goalStatusTask, pollStatusTask, predictionStatusTask, activityTask, moderationLogTask);
 
         status = statusTask.Result;
         streamStatus = streamStatusTask.Result;
         hypeTrainStatus = hypeTrainStatusTask.Result;
         goalStatus = goalStatusTask.Result;
+        pollStatus = pollStatusTask.Result;
+        predictionStatus = predictionStatusTask.Result;
         activity = activityTask.Result;
         moderationLog = moderationLogTask.Result;
         loading = false;

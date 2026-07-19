@@ -97,6 +97,23 @@ app.MapGet("goal/status", (ITwitchWebSocketService twitchWebSocketService) =>
         : new GoalStatusResponse(true, status.Type, status.Description, status.CurrentAmount, status.TargetAmount));
 });
 
+app.MapGet("poll/status", (ITwitchWebSocketService twitchWebSocketService) =>
+{
+    var status = twitchWebSocketService.GetPollStatus();
+    return Results.Ok(status is null
+        ? new PollStatusResponse(false, string.Empty, [])
+        : new PollStatusResponse(true, status.Title, status.Choices.Select(c => new PollChoiceResponse(c.Title, c.Votes)).ToArray()));
+});
+
+app.MapGet("prediction/status", (ITwitchWebSocketService twitchWebSocketService) =>
+{
+    var status = twitchWebSocketService.GetPredictionStatus();
+    return Results.Ok(status is null
+        ? new PredictionStatusResponse(false, string.Empty, false, [])
+        : new PredictionStatusResponse(true, status.Title, status.Locked,
+            status.Outcomes.Select(o => new PredictionOutcomeResponse(o.Title, o.Color, o.Users, o.ChannelPoints)).ToArray()));
+});
+
 app.MapGet("activity/recent", (ITwitchActivityFeedService activityFeedService) =>
 {
     var items = activityFeedService.GetRecent()
@@ -161,6 +178,14 @@ public record StreamStatusResponse(bool? IsLive, DateTimeOffset? StartedAt);
 public record HypeTrainStatusResponse(bool IsActive, int Level, int Progress, int Goal);
 
 public record GoalStatusResponse(bool IsActive, string Type, string Description, int CurrentAmount, int TargetAmount);
+
+public record PollChoiceResponse(string Title, int Votes);
+
+public record PollStatusResponse(bool IsActive, string Title, PollChoiceResponse[] Choices);
+
+public record PredictionOutcomeResponse(string Title, string Color, int Users, int ChannelPoints);
+
+public record PredictionStatusResponse(bool IsActive, string Title, bool Locked, PredictionOutcomeResponse[] Outcomes);
 
 public record ActivityFeedItem(string Kind, DateTimeOffset OccurredAt, string DisplayName, string Summary);
 
