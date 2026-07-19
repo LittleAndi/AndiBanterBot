@@ -37,6 +37,12 @@ public class TwitchWebSocketService(
     private bool resumingSession = false;
     private DateTime lastMessageAtUtc = DateTime.MinValue;
 
+    // Each entry is a self-contained addition: a new subscription type gets its own
+    // handler method and its own line here, instead of a shared branch everyone touches.
+    // Built in Start() rather than a field initializer, since primary-constructor field
+    // initializers can't reference instance methods.
+    private Dictionary<string, Action<string>> notificationHandlers = [];
+
     public event EventHandler<ChatMessageEvent>? ChatMessageReceived;
     public event EventHandler<RewardRedemptionEvent>? RewardRedemptionReceived;
 
@@ -52,6 +58,12 @@ public class TwitchWebSocketService(
 
             if (!handlersAttached)
             {
+                notificationHandlers = new Dictionary<string, Action<string>>
+                {
+                    ["channel.chat.message"] = HandleChatMessage,
+                    ["channel.channel_points_custom_reward_redemption.add"] = HandleRewardRedemption,
+                };
+
                 // Subscriptions created from the welcome message must survive the caller's
                 // request, so they are tied to application shutdown instead
                 var stoppingToken = hostApplicationLifetime.ApplicationStopping;
@@ -191,14 +203,14 @@ public class TwitchWebSocketService(
         // metadata.message_type is always "notification"
         if (e.Response?.Metadata.MessageType == "notification")
         {
-            switch (e.Response.Metadata.SubscriptionType)
+            var subscriptionType = e.Response.Metadata.SubscriptionType;
+            if (subscriptionType is not null && notificationHandlers.TryGetValue(subscriptionType, out var handler))
             {
-                case "channel.chat.message":
-                    HandleChatMessage(e.RawMessage);
-                    break;
-                case "channel.channel_points_custom_reward_redemption.add":
-                    HandleRewardRedemption(e.RawMessage);
-                    break;
+                handler(e.RawMessage);
+            }
+            else
+            {
+                logger.LogWarning("No notification handler registered for subscription type {SubscriptionType}", subscriptionType);
             }
         }
     }
