@@ -8,42 +8,25 @@
 
 <PageTitle>Twitch Login</PageTitle>
 
-<h1>Get User Access Tokens</h1>
+<div class="twitch-login">
+    <h1 class="twitch-login-title">Get User Access Tokens</h1>
 
-@if (status is null)
-{
-    <div class="alert alert-warning">
-        Could not reach the Twitch service, status is unknown.
-    </div>
-}
-else
-{
-    <div class="alert @(status.BotConnection.Connected ? "alert-success" : "alert-secondary")">
-        Bot EventSub websocket (chat): @(status.BotConnection.Connected ? "connected" : "not connected")
-        @if (status.BotConnection.LastMessageAtUtc is not null)
-        {
-            <span> — last message @status.BotConnection.LastMessageAtUtc.Value.ToLocalTime().ToString("g")</span>
-        }
-    </div>
-    <div class="alert @(status.BroadcasterConnection.Connected ? "alert-success" : "alert-secondary")">
-        Broadcaster EventSub websocket (redemptions, raids, follows, subs, cheers, stream status): @(status.BroadcasterConnection.Connected ? "connected" : "not connected")
-        @if (status.BroadcasterConnection.LastMessageAtUtc is not null)
-        {
-            <span> — last message @status.BroadcasterConnection.LastMessageAtUtc.Value.ToLocalTime().ToString("g")</span>
-        }
-    </div>
-}
+    @if (status is null)
+    {
+        <div class="alert alert-warning">
+            Could not reach the Twitch service, status is unknown.
+        </div>
+    }
 
-<div class="mb-3">
-    <h5>Bot account @RoleBadge(status?.Bot)</h5>
-    <a href='@botUrl'>Authorize Bot with bot account</a>
+    <div class="twitch-login-grid">
+        <AccountCard Title="Bot account" Role="status?.Bot" AuthorizeUrl="@botUrl" ActionLabel="Authorize Bot with bot account"
+                     Connection="status?.BotConnection" ConnectionLabel="EventSub websocket (chat)" />
+        <AccountCard Title="Broadcaster account" Role="status?.Broadcaster" AuthorizeUrl="@streamerUrl" ActionLabel="Authorize Bot with stream account"
+                     Connection="status?.BroadcasterConnection" ConnectionLabel="EventSub websocket (redemptions, raids, follows, subs, cheers, stream status)" />
+    </div>
+
+    <ChatSendBox />
 </div>
-<div class="mb-3">
-    <h5>Broadcaster account @RoleBadge(status?.Broadcaster)</h5>
-    <a href='@streamerUrl'>Authorize Bot with stream account</a>
-</div>
-
-<ChatSendBox />
 
 @code {
     private string botUrl = string.Empty;
@@ -64,11 +47,4 @@ else
             StateHasChanged();
         }
     }
-
-    private static string RoleBadge(RoleStatus? role) => role switch
-    {
-        null => "— not logged in",
-        { NeedsLogin: true } => $"— {role.Login}: login expired, please log in again",
-        _ => $"— logged in as {role.Login}",
-    };
 }

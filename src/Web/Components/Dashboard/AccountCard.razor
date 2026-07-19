@@ -3,6 +3,31 @@
 <div class="account-card">
     <h2 class="account-title">@Title</h2>
 
+    @if (Connection is not null)
+    {
+        <p class="account-connection @(Connection.Connected ? "account-connection--ok" : "account-connection--off")">
+            <span class="account-connection-dot" aria-hidden="true">
+                <svg viewBox="0 0 16 16">
+                    @if (Connection.Connected)
+                    {
+                        <circle cx="8" cy="8" r="8" fill="currentColor" />
+                    }
+                    else
+                    {
+                        <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.6" />
+                    }
+                </svg>
+            </span>
+            <span>
+                @ConnectionLabel: @(Connection.Connected ? "connected" : "not connected")
+                @if (Connection.LastMessageAtUtc is not null)
+                {
+                    <text> — last message <span class="mono">@Connection.LastMessageAtUtc.Value.ToLocalTime().ToString("g")</span></text>
+                }
+            </span>
+        </p>
+    }
+
     @if (Role is null)
     {
         <p class="account-status account-status--muted">Not logged in yet.</p>
@@ -36,4 +61,6 @@
     [Parameter] public RoleStatus? Role { get; set; }
     [Parameter, EditorRequired] public string AuthorizeUrl { get; set; } = string.Empty;
     [Parameter, EditorRequired] public string ActionLabel { get; set; } = string.Empty;
+    [Parameter] public ConnectionStatus? Connection { get; set; }
+    [Parameter] public string ConnectionLabel { get; set; } = string.Empty;
 }
