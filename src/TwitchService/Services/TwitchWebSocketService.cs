@@ -6,6 +6,7 @@ public interface ITwitchWebSocketService
     Task CloseAsync(CancellationToken cancellationToken = default);
     Task SubscribeToBroadcasterSubscriptions(CancellationToken cancellationToken = default);
     TwitchWebSocketStatus GetStatus();
+    StreamStatusSnapshot GetStreamStatus();
     event EventHandler<ChatMessageEvent>? ChatMessageReceived;
     event EventHandler<RewardRedemptionEvent>? RewardRedemptionReceived;
     event EventHandler<StreamStatusChangedEvent>? StreamStatusChanged;
@@ -23,6 +24,7 @@ public class TwitchWebSocketService(
     ILogger<TwitchWebSocketService> logger) : ITwitchWebSocketService
 {
     private readonly HttpClient twitchHttpClientUserAccess = httpClientFactory.CreateClient("TwitchClientUserAccess");
+    private readonly HttpClient twitchHttpClientAppAccess = httpClientFactory.CreateClient("TwitchClientAppAccess");
     private readonly string broadcasterUsername = configuration["Twitch:BroadcasterUsername"] ?? throw new InvalidOperationException("BroadcasterUsername not configured");
     private readonly string monitoredUsername = configuration["Twitch:MonitoredUsername"] ?? throw new InvalidOperationException("MonitoredUsername not configured");
     private const int KeepaliveTimeoutSeconds = 60;
@@ -37,6 +39,7 @@ public class TwitchWebSocketService(
     private string? pendingReconnectUrl;
     private bool resumingSession = false;
     private DateTime lastMessageAtUtc = DateTime.MinValue;
+    private StreamStatusSnapshot streamStatus = StreamStatusSnapshot.Unknown;
 
     // Each entry is a self-contained addition: a new subscription type gets its own
     // handler method and its own line here, instead of a shared branch everyone touches.
@@ -111,6 +114,8 @@ public class TwitchWebSocketService(
         return new TwitchWebSocketStatus(connectingOrConnected, sessionId, lastMessageAtUtc, TimeSpan.FromSeconds(KeepaliveTimeoutSeconds));
     }
 
+    public StreamStatusSnapshot GetStreamStatus() => streamStatus;
+
     private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
     {
         try
@@ -175,6 +180,7 @@ public class TwitchWebSocketService(
             await SubscribeToChannelPointsRedemption(sessionId, cancellationToken);
             await SubscribeToStreamOnline(sessionId, cancellationToken);
             await SubscribeToStreamOffline(sessionId, cancellationToken);
+            await RefreshStreamStatusAsync(cancellationToken);
         }
         else
         {
@@ -281,6 +287,8 @@ public class TwitchWebSocketService(
 
             logger.LogInformation("Stream online #{Broadcaster} (type: {Type})", streamOnline.BroadcasterUserLogin, streamOnline.Type);
 
+            streamStatus = new StreamStatusSnapshot(true, streamOnline.StartedAt);
+
             StreamStatusChanged?.Invoke(this, new StreamStatusChangedEvent(
                 IsLive: true,
                 BroadcasterUserId: streamOnline.BroadcasterUserId,
@@ -307,6 +315,8 @@ public class TwitchWebSocketService(
             }
 
             logger.LogInformation("Stream offline #{Broadcaster}", streamOffline.BroadcasterUserLogin);
+
+            streamStatus = new StreamStatusSnapshot(false, null);
 
             StreamStatusChanged?.Invoke(this, new StreamStatusChangedEvent(
                 IsLive: false,
@@ -496,6 +506,34 @@ public class TwitchWebSocketService(
         }
     }
 
+    // stream.online/offline only fire on transitions, so a stream already live when the
+    // service starts (or reconnects) would otherwise never be reflected. This Helix lookup
+    // seeds the initial state; the EventSub handlers keep it current from there.
+    private async Task RefreshStreamStatusAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await twitchHttpClientAppAccess.GetAsync($"helix/streams?user_id={broadcasterId}", cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to refresh stream status. Status: {StatusCode}", response.StatusCode);
+                return;
+            }
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var doc = JsonDocument.Parse(content);
+            var data = doc.RootElement.GetProperty("data");
+
+            streamStatus = data.GetArrayLength() == 0
+                ? new StreamStatusSnapshot(false, null)
+                : new StreamStatusSnapshot(true, data[0].GetProperty("started_at").GetDateTimeOffset());
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error refreshing stream status");
+        }
+    }
+
     public async Task SubscribeToBroadcasterSubscriptions(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(sessionId))
@@ -507,5 +545,6 @@ public class TwitchWebSocketService(
         await SubscribeToChannelPointsRedemption(sessionId: sessionId, cancellationToken);
         await SubscribeToStreamOnline(sessionId: sessionId, cancellationToken);
         await SubscribeToStreamOffline(sessionId: sessionId, cancellationToken);
+        await RefreshStreamStatusAsync(cancellationToken);
     }
 }

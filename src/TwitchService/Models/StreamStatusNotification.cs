@@ -75,3 +75,13 @@ public record StreamStatusChangedEvent(
     string BroadcasterUserLogin,
     string BroadcasterUserName,
     DateTimeOffset? StartedAt);
+
+/// <summary>
+/// Current stream live/offline state as known to the service. IsLive is null when it hasn't
+/// been determined yet (e.g. no broadcaster token stored, so neither EventSub notifications
+/// nor the Helix streams lookup have ever run).
+/// </summary>
+public record StreamStatusSnapshot(bool? IsLive, DateTimeOffset? StartedAt)
+{
+    public static readonly StreamStatusSnapshot Unknown = new(null, null);
+}

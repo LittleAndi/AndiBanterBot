@@ -13,6 +13,7 @@
     <StatusBand Status="status" Loading="loading" Refreshing="refreshing" OnRetry="RetryStatus" />
 
     <div class="dashboard-grid">
+        <StreamStatusTile Status="streamStatus" Loading="loading" />
         <AccountCard Title="Bot account" Role="status?.Bot" AuthorizeUrl="@botUrl" ActionLabel="Log in with bot account" />
         <AccountCard Title="Broadcaster account" Role="status?.Broadcaster" AuthorizeUrl="@streamerUrl" ActionLabel="Log in with broadcaster account" />
         <ChatSendBox />
@@ -30,6 +31,7 @@
 
 @code {
     private AuthStatusResponse? status;
+    private StreamStatusResponse? streamStatus;
     private bool loading = true;
     private bool refreshing;
     private string botUrl = string.Empty;
@@ -54,7 +56,12 @@
 
     private async Task FetchStatusAsync()
     {
-        status = await TwitchApiClient.GetAuthStatus();
+        var statusTask = TwitchApiClient.GetAuthStatus();
+        var streamStatusTask = TwitchApiClient.GetStreamStatus();
+        await Task.WhenAll(statusTask, streamStatusTask);
+
+        status = statusTask.Result;
+        streamStatus = streamStatusTask.Result;
         loading = false;
     }
 

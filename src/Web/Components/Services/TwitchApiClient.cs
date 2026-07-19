@@ -26,6 +26,21 @@ public class TwitchApiClient(IHttpClientFactory httpClientFactory)
         }
     }
 
+    // Same reasoning as GetAuthStatus: fail fast toward "unreachable" instead of
+    // waiting out the standard resilience handler's retry budget.
+    public async Task<StreamStatusResponse?> GetStreamStatus()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            return await httpClient.GetFromJsonAsync<StreamStatusResponse>("stream/status", cts.Token);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
     public async Task<SendChatMessageResponse> SendChatMessage(string message)
     {
         try
@@ -56,3 +71,5 @@ public record SendChatMessageResponse(bool Sent, string? MessageId, string? Drop
 public record RoleStatus(string Login, bool NeedsLogin, string[] Scopes);
 
 public record AuthStatusResponse(RoleStatus? Bot, RoleStatus? Broadcaster, bool WebSocketConnected, DateTime? LastMessageAtUtc);
+
+public record StreamStatusResponse(bool? IsLive, DateTimeOffset? StartedAt);
