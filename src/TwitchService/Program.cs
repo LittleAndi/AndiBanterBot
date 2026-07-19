@@ -58,23 +58,21 @@ app.MapGet("auth/status", (ITwitchTokenStore tokenStore, ITwitchWebSocketService
     var botSocket = twitchWebSocketService.GetStatus(TwitchUserRole.Bot);
     var broadcasterSocket = twitchWebSocketService.GetStatus(TwitchUserRole.Broadcaster);
 
-    // Bot and Broadcaster are two independent WebSocket sessions; connected/last-message
-    // here is an aggregate across both for callers that don't care which one.
-    var connected = botSocket.Connected || broadcasterSocket.Connected;
-    var lastMessageAtUtc = Max(botSocket.LastMessageAtUtc, broadcasterSocket.LastMessageAtUtc);
-
     return Results.Ok(new AuthStatusResponse(
         ToRoleStatus(tokens, TwitchUserRole.Bot),
         ToRoleStatus(tokens, TwitchUserRole.Broadcaster),
-        connected,
-        lastMessageAtUtc == DateTime.MinValue ? null : lastMessageAtUtc));
+        ToConnectionStatus(botSocket),
+        ToConnectionStatus(broadcasterSocket)));
 
     static RoleStatus? ToRoleStatus(IReadOnlyDictionary<TwitchUserRole, TwitchTokenStatus> tokens, TwitchUserRole role)
         => tokens.TryGetValue(role, out var status)
             ? new RoleStatus(status.Login, status.NeedsLogin, status.Scopes)
             : null;
 
-    static DateTime Max(DateTime a, DateTime b) => a > b ? a : b;
+    // Bot and Broadcaster are two independent WebSocket sessions and can fail independently
+    // (see #98/#99), so their connection status is reported per-role rather than aggregated.
+    static ConnectionStatus ToConnectionStatus(TwitchWebSocketStatus status)
+        => new(status.Connected, status.LastMessageAtUtc == DateTime.MinValue ? null : status.LastMessageAtUtc);
 });
 
 app.MapGet("stream/status", (ITwitchWebSocketService twitchWebSocketService) =>
@@ -130,7 +128,9 @@ public record AuthCallbackResponse(string Role, string Login);
 
 public record RoleStatus(string Login, bool NeedsLogin, string[] Scopes);
 
-public record AuthStatusResponse(RoleStatus? Bot, RoleStatus? Broadcaster, bool WebSocketConnected, DateTime? LastMessageAtUtc);
+public record ConnectionStatus(bool Connected, DateTime? LastMessageAtUtc);
+
+public record AuthStatusResponse(RoleStatus? Bot, RoleStatus? Broadcaster, ConnectionStatus BotConnection, ConnectionStatus BroadcasterConnection);
 
 public record StreamStatusResponse(bool? IsLive, DateTimeOffset? StartedAt);
 
