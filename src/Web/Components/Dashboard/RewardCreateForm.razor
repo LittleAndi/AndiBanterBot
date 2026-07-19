@@ -1,0 +1,102 @@
+@using Web.Components.Services
+@inject TwitchApiClient TwitchApiClient
+
+<div class="reward-create">
+    <h2 class="reward-create-title">New reward</h2>
+
+    <div class="reward-create-grid">
+        <label class="reward-create-field">
+            <span>Title</span>
+            <input class="reward-create-input" @bind="title" @bind:event="oninput" placeholder="e.g. Hydrate!" maxlength="45" />
+        </label>
+
+        <label class="reward-create-field">
+            <span>Cost</span>
+            <input class="reward-create-input" type="number" min="1" @bind="cost" @bind:event="oninput" />
+        </label>
+
+        <label class="reward-create-field reward-create-field--wide">
+            <span>Prompt <span class="reward-create-optional">(optional)</span></span>
+            <textarea class="reward-create-input reward-create-textarea" @bind="prompt" @bind:event="oninput" maxlength="200" placeholder="Shown to viewers when redeeming"></textarea>
+        </label>
+
+        <label class="reward-create-field">
+            <span>Background color</span>
+            <input class="reward-create-color" type="color" @bind="backgroundColor" />
+        </label>
+
+        <label class="reward-create-checkbox">
+            <input type="checkbox" @bind="requiresUserInput" />
+            <span>Require viewer text input</span>
+        </label>
+
+        <label class="reward-create-checkbox">
+            <input type="checkbox" @bind="skipRequestQueue" />
+            <span>Auto-fulfill (skip request queue)</span>
+        </label>
+    </div>
+
+    <div class="reward-create-actions">
+        <button class="reward-create-submit" @onclick="Submit" disabled="@(creating || !CanSubmit)">
+            @(creating ? "Creating…" : "Create reward")
+        </button>
+        @if (feedback is not null)
+        {
+            <p class="reward-create-feedback @(succeeded ? "reward-create-feedback--ok" : "reward-create-feedback--error")">@feedback</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback<RewardItem> OnCreated { get; set; }
+
+    private string title = string.Empty;
+    private int cost = 100;
+    private string prompt = string.Empty;
+    private string backgroundColor = "#9146FF";
+    private bool requiresUserInput;
+    private bool skipRequestQueue;
+    private bool creating;
+    private bool succeeded;
+    private string? feedback;
+
+    private bool CanSubmit => !string.IsNullOrWhiteSpace(title) && cost > 0;
+
+    private async Task Submit()
+    {
+        if (creating || !CanSubmit)
+        {
+            return;
+        }
+
+        creating = true;
+        feedback = null;
+        try
+        {
+            var result = await TwitchApiClient.CreateReward(new CreateRewardRequest(
+                title.Trim(),
+                cost,
+                string.IsNullOrWhiteSpace(prompt) ? null : prompt.Trim(),
+                BackgroundColor: backgroundColor,
+                IsUserInputRequired: requiresUserInput,
+                ShouldRedemptionsSkipRequestQueue: skipRequestQueue));
+
+            succeeded = result.Success;
+            feedback = result.Success ? $"Created \"{result.Reward!.Title}\"." : result.Error ?? "Couldn't create the reward.";
+
+            if (result.Success && result.Reward is not null)
+            {
+                await OnCreated.InvokeAsync(result.Reward);
+                title = string.Empty;
+                cost = 100;
+                prompt = string.Empty;
+                requiresUserInput = false;
+                skipRequestQueue = false;
+            }
+        }
+        finally
+        {
+            creating = false;
+        }
+    }
+}

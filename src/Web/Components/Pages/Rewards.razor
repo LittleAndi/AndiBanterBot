@@ -1,0 +1,49 @@
+@page "/rewards"
+@using Web.Components.Dashboard
+@using Web.Components.Services
+@inject TwitchApiClient TwitchApiClient
+@rendermode InteractiveServer
+
+<PageTitle>Rewards</PageTitle>
+
+<div class="rewards-page">
+    <h1 class="rewards-page-title">Channel point rewards</h1>
+    <p class="rewards-page-subtitle">
+        Twitch only lets the app that created a reward manage it, so only rewards created here show up below —
+        anything made on Twitch's own dashboard has to stay managed there.
+    </p>
+
+    <RewardCreateForm OnCreated="HandleRewardCreated" />
+
+    <RewardsPanel Items="rewards" Loading="loading" OnToggled="HandleRewardToggled" />
+</div>
+
+@code {
+    private RewardItem[]? rewards;
+    private bool loading = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            rewards = await TwitchApiClient.GetRewards();
+            loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void HandleRewardToggled(RewardItem updated)
+    {
+        if (rewards is null)
+        {
+            return;
+        }
+
+        rewards = [.. rewards.Select(r => r.Id == updated.Id ? updated : r)];
+    }
+
+    private void HandleRewardCreated(RewardItem created)
+    {
+        rewards = rewards is null ? [created] : [.. rewards, created];
+    }
+}
