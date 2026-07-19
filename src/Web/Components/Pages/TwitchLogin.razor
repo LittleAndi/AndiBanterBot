@@ -18,11 +18,18 @@
 }
 else
 {
-    <div class="alert @(status.WebSocketConnected ? "alert-success" : "alert-secondary")">
-        EventSub websocket: @(status.WebSocketConnected ? "connected" : "not connected")
-        @if (status.LastMessageAtUtc is not null)
+    <div class="alert @(status.BotConnection.Connected ? "alert-success" : "alert-secondary")">
+        Bot EventSub websocket (chat): @(status.BotConnection.Connected ? "connected" : "not connected")
+        @if (status.BotConnection.LastMessageAtUtc is not null)
         {
-            <span> — last message @status.LastMessageAtUtc.Value.ToLocalTime().ToString("g")</span>
+            <span> — last message @status.BotConnection.LastMessageAtUtc.Value.ToLocalTime().ToString("g")</span>
+        }
+    </div>
+    <div class="alert @(status.BroadcasterConnection.Connected ? "alert-success" : "alert-secondary")">
+        Broadcaster EventSub websocket (redemptions, raids, follows, subs, cheers, stream status): @(status.BroadcasterConnection.Connected ? "connected" : "not connected")
+        @if (status.BroadcasterConnection.LastMessageAtUtc is not null)
+        {
+            <span> — last message @status.BroadcasterConnection.LastMessageAtUtc.Value.ToLocalTime().ToString("g")</span>
         }
     </div>
 }

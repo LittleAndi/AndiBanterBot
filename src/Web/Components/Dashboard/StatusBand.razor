@@ -32,9 +32,9 @@
             <span class="status-headline">Bot's online</span>
             <span class="status-detail">
                 Connected to EventSub
-                @if (Status.LastMessageAtUtc is not null)
+                @if (LastMessageAtUtc is not null)
                 {
-                    <text> · last message <time class="mono">@Status.LastMessageAtUtc.Value.ToLocalTime().ToString("t")</time></text>
+                    <text> · last message <time class="mono">@LastMessageAtUtc.Value.ToLocalTime().ToString("t")</time></text>
                 }
             </span>
         }
@@ -54,21 +54,37 @@
 
     private bool NeverLoggedIn => Status is { Bot: null, Broadcaster: null };
 
+    // Bot and Broadcaster run independent EventSub WebSocket connections (see #98/#99) and
+    // can fail independently, so each is checked on its own rather than as one aggregate.
     private bool NeedsAttention =>
         Status is not null && !NeverLoggedIn &&
-        (!Status.WebSocketConnected
-            || Status.Bot is null or { NeedsLogin: true }
-            || Status.Broadcaster is null or { NeedsLogin: true });
+        (Status.Bot is null or { NeedsLogin: true }
+            || Status.Broadcaster is null or { NeedsLogin: true }
+            || !Status.BotConnection.Connected
+            || !Status.BroadcasterConnection.Connected);
 
     private string AttentionReason
     {
         get
         {
             if (Status is null) return string.Empty;
-            if (!Status.WebSocketConnected) return "The EventSub connection is down.";
             if (Status.Bot is null or { NeedsLogin: true }) return "The bot account needs to log in again.";
             if (Status.Broadcaster is null or { NeedsLogin: true }) return "The broadcaster account needs to log in again.";
+            if (!Status.BotConnection.Connected) return "The chat connection is down.";
+            if (!Status.BroadcasterConnection.Connected) return "The connection for redemptions, raids, follows, subs, and cheers is down.";
             return string.Empty;
+        }
+    }
+
+    private DateTime? LastMessageAtUtc
+    {
+        get
+        {
+            var bot = Status?.BotConnection.LastMessageAtUtc;
+            var broadcaster = Status?.BroadcasterConnection.LastMessageAtUtc;
+            if (bot is null) return broadcaster;
+            if (broadcaster is null) return bot;
+            return bot > broadcaster ? bot : broadcaster;
         }
     }
 

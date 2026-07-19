@@ -85,7 +85,9 @@ public record SendChatMessageResponse(bool Sent, string? MessageId, string? Drop
 
 public record RoleStatus(string Login, bool NeedsLogin, string[] Scopes);
 
-public record AuthStatusResponse(RoleStatus? Bot, RoleStatus? Broadcaster, bool WebSocketConnected, DateTime? LastMessageAtUtc);
+public record ConnectionStatus(bool Connected, DateTime? LastMessageAtUtc);
+
+public record AuthStatusResponse(RoleStatus? Bot, RoleStatus? Broadcaster, ConnectionStatus BotConnection, ConnectionStatus BroadcasterConnection);
 
 public record StreamStatusResponse(bool? IsLive, DateTimeOffset? StartedAt);
 
