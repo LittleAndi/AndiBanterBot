@@ -5,7 +5,7 @@ public interface ITwitchChatService
     Task<ChatSendResult> SendMessageAsync(string message, string? replyParentMessageId = null, CancellationToken cancellationToken = default);
 }
 
-public record ChatSendResult(bool Sent, string? MessageId, string? DropReason);
+public record ChatSendResult(bool Sent, string? MessageId, string? DropReason, bool RateLimited = false, DateTimeOffset? RateLimitResetAt = null);
 
 /// <summary>
 /// Sends chat messages through the Helix API (POST /helix/chat/messages) as the
@@ -54,6 +54,13 @@ public class TwitchChatService(
         var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
         var content = await response.Content.ReadAsStringAsync(cancellationToken);
 
+        if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+        {
+            var resetAt = TryParseRateLimitReset(response.Headers);
+            logger.LogWarning("Chat message to #{Broadcaster} was rate limited by Twitch. Resets at {ResetAt}", broadcasterUsername, resetAt);
+            return new ChatSendResult(false, null, "Rate limited by Twitch", RateLimited: true, RateLimitResetAt: resetAt);
+        }
+
         if (!response.IsSuccessStatusCode)
         {
             logger.LogError("Failed to send chat message. Status: {StatusCode}, Response: {Response}", response.StatusCode, content);
@@ -65,9 +72,11 @@ public class TwitchChatService(
         var messageId = data.GetProperty("message_id").GetString();
         var isSent = data.GetProperty("is_sent").GetBoolean();
         string? dropReason = null;
+        string? dropReasonCode = null;
         if (!isSent && data.TryGetProperty("drop_reason", out var drop) && drop.ValueKind == JsonValueKind.Object)
         {
             dropReason = drop.GetProperty("message").GetString();
+            dropReasonCode = drop.TryGetProperty("code", out var codeProperty) ? codeProperty.GetString() : null;
         }
 
         if (isSent)
@@ -76,9 +85,24 @@ public class TwitchChatService(
         }
         else
         {
-            logger.LogWarning("Chat message to #{Broadcaster} was dropped: {DropReason}", broadcasterUsername, dropReason);
+            logger.LogWarning("Chat message to #{Broadcaster} was dropped ({DropReasonCode}): {DropReason}", broadcasterUsername, dropReasonCode, dropReason);
         }
 
         return new ChatSendResult(isSent, messageId, dropReason);
+    }
+
+    /// <summary>
+    /// Twitch's Helix rate limit headers report the bucket reset time as a Unix
+    /// timestamp in <c>Ratelimit-Reset</c>, regardless of endpoint.
+    /// </summary>
+    private static DateTimeOffset? TryParseRateLimitReset(HttpResponseHeaders headers)
+    {
+        if (headers.TryGetValues("Ratelimit-Reset", out var values) &&
+            long.TryParse(values.FirstOrDefault(), out var epochSeconds))
+        {
+            return DateTimeOffset.FromUnixTimeSeconds(epochSeconds);
+        }
+
+        return null;
     }
 }
