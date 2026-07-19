@@ -80,9 +80,20 @@ app.MapPost("chat/messages", async (
     }
 
     var result = await chatService.SendMessageAsync(request.Message, request.ReplyParentMessageId, cancellationToken);
-    return result.Sent
-        ? Results.Ok(new SendChatMessageResponse(result.Sent, result.MessageId, result.DropReason))
-        : Results.Problem(result.DropReason ?? "Message was not sent", statusCode: StatusCodes.Status502BadGateway);
+    if (result.Sent)
+    {
+        return Results.Ok(new SendChatMessageResponse(result.Sent, result.MessageId, result.DropReason));
+    }
+
+    if (result.RateLimited)
+    {
+        return Results.Problem(
+            result.DropReason ?? "Rate limited by Twitch",
+            statusCode: StatusCodes.Status429TooManyRequests,
+            extensions: new Dictionary<string, object?> { ["retryAfter"] = result.RateLimitResetAt });
+    }
+
+    return Results.Problem(result.DropReason ?? "Message was not sent", statusCode: StatusCodes.Status502BadGateway);
 });
 
 app.Run();
