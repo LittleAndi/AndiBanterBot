@@ -24,6 +24,9 @@ public interface ITwitchWebSocketService
     event EventHandler<GoalEvent>? GoalBeginReceived;
     event EventHandler<GoalEvent>? GoalProgressReceived;
     event EventHandler<GoalEndEvent>? GoalEndReceived;
+    event EventHandler<PollEvent>? PollBeginReceived;
+    event EventHandler<PollEvent>? PollProgressReceived;
+    event EventHandler<PollEndEvent>? PollEndReceived;
     event EventHandler<BanEvent>? BanReceived;
     event EventHandler<UnbanEvent>? UnbanReceived;
     event EventHandler<ModerateEvent>? ModerateReceived;
@@ -89,6 +92,9 @@ public class TwitchWebSocketService(
     public event EventHandler<GoalEvent>? GoalBeginReceived;
     public event EventHandler<GoalEvent>? GoalProgressReceived;
     public event EventHandler<GoalEndEvent>? GoalEndReceived;
+    public event EventHandler<PollEvent>? PollBeginReceived;
+    public event EventHandler<PollEvent>? PollProgressReceived;
+    public event EventHandler<PollEndEvent>? PollEndReceived;
     public event EventHandler<BanEvent>? BanReceived;
     public event EventHandler<UnbanEvent>? UnbanReceived;
     public event EventHandler<ModerateEvent>? ModerateReceived;
@@ -202,6 +208,9 @@ public class TwitchWebSocketService(
             ["channel.goal.begin"] = HandleGoalBegin,
             ["channel.goal.progress"] = HandleGoalProgress,
             ["channel.goal.end"] = HandleGoalEnd,
+            ["channel.poll.begin"] = HandlePollBegin,
+            ["channel.poll.progress"] = HandlePollProgress,
+            ["channel.poll.end"] = HandlePollEnd,
             ["channel.ban"] = HandleBan,
             ["channel.unban"] = HandleUnban,
             ["channel.moderate"] = HandleModerate,
@@ -300,6 +309,9 @@ public class TwitchWebSocketService(
             await SubscribeToGoalBegin(connection.SessionId, cancellationToken);
             await SubscribeToGoalProgress(connection.SessionId, cancellationToken);
             await SubscribeToGoalEnd(connection.SessionId, cancellationToken);
+            await SubscribeToPollBegin(connection.SessionId, cancellationToken);
+            await SubscribeToPollProgress(connection.SessionId, cancellationToken);
+            await SubscribeToPollEnd(connection.SessionId, cancellationToken);
             await SubscribeToChannelBan(connection.SessionId, cancellationToken);
             await SubscribeToChannelUnban(connection.SessionId, cancellationToken);
             await SubscribeToChannelModerate(connection.SessionId, cancellationToken);
@@ -733,6 +745,73 @@ public class TwitchWebSocketService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to parse channel.goal.end notification");
+        }
+    }
+
+    private void HandlePollBegin(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<PollNotification>(rawMessage);
+            var poll = notification?.Payload.Event;
+            if (poll is null)
+            {
+                logger.LogWarning("channel.poll.begin notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Poll started #{Broadcaster}: {Title}", poll.BroadcasterUserLogin, poll.Title);
+
+            PollBeginReceived?.Invoke(this, poll);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.poll.begin notification");
+        }
+    }
+
+    private void HandlePollProgress(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<PollNotification>(rawMessage);
+            var poll = notification?.Payload.Event;
+            if (poll is null)
+            {
+                logger.LogWarning("channel.poll.progress notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Poll progress #{Broadcaster}: {Title}", poll.BroadcasterUserLogin, poll.Title);
+
+            PollProgressReceived?.Invoke(this, poll);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.poll.progress notification");
+        }
+    }
+
+    private void HandlePollEnd(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<PollEndNotification>(rawMessage);
+            var poll = notification?.Payload.Event;
+            if (poll is null)
+            {
+                logger.LogWarning("channel.poll.end notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Poll ended #{Broadcaster}: {Title} (status: {Status})",
+                poll.BroadcasterUserLogin, poll.Title, poll.Status);
+
+            PollEndReceived?.Invoke(this, poll);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.poll.end notification");
         }
     }
 
@@ -1344,6 +1423,58 @@ public class TwitchWebSocketService(
         }
     }
 
+    // Requires channel:read:polls (or channel:manage:polls) on the broadcaster token.
+    private async Task SubscribeToPollBegin(string? sessionId, CancellationToken cancellationToken) =>
+        await SubscribeToPoll("channel.poll.begin", sessionId, cancellationToken);
+
+    private async Task SubscribeToPollProgress(string? sessionId, CancellationToken cancellationToken) =>
+        await SubscribeToPoll("channel.poll.progress", sessionId, cancellationToken);
+
+    private async Task SubscribeToPollEnd(string? sessionId, CancellationToken cancellationToken) =>
+        await SubscribeToPoll("channel.poll.end", sessionId, cancellationToken);
+
+    private async Task SubscribeToPoll(string type, string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type,
+                version = "1",
+                condition = new
+                {
+                    broadcaster_user_id = broadcasterId,
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId,
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created {Type} subscription. Response: {Response}", type, content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating {Type} subscription", type);
+        }
+    }
+
     // Requires channel:moderate on the broadcaster token. Only fires for permanent bans -
     // timeouts arrive via channel.moderate's "timeout" action instead.
     private async Task SubscribeToChannelBan(string? sessionId, CancellationToken cancellationToken)
@@ -1529,6 +1660,9 @@ public class TwitchWebSocketService(
         await SubscribeToGoalBegin(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToGoalProgress(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToGoalEnd(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToPollBegin(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToPollProgress(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToPollEnd(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToChannelBan(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToChannelUnban(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToChannelModerate(sessionId: broadcaster.SessionId, cancellationToken);
