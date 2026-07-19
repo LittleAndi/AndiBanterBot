@@ -12,6 +12,10 @@ public interface ITwitchWebSocketService
     event EventHandler<StreamStatusChangedEvent>? StreamStatusChanged;
     event EventHandler<RaidEvent>? RaidReceived;
     event EventHandler<FollowEvent>? FollowReceived;
+    event EventHandler<SubscribeEvent>? SubscribeReceived;
+    event EventHandler<SubscriptionGiftEvent>? SubscriptionGiftReceived;
+    event EventHandler<SubscriptionMessageEvent>? SubscriptionMessageReceived;
+    event EventHandler<CheerEvent>? CheerReceived;
 }
 
 public record TwitchWebSocketStatus(bool Connected, string SessionId, DateTime LastMessageAtUtc, TimeSpan KeepaliveTimeout);
@@ -54,6 +58,10 @@ public class TwitchWebSocketService(
     public event EventHandler<StreamStatusChangedEvent>? StreamStatusChanged;
     public event EventHandler<RaidEvent>? RaidReceived;
     public event EventHandler<FollowEvent>? FollowReceived;
+    public event EventHandler<SubscribeEvent>? SubscribeReceived;
+    public event EventHandler<SubscriptionGiftEvent>? SubscriptionGiftReceived;
+    public event EventHandler<SubscriptionMessageEvent>? SubscriptionMessageReceived;
+    public event EventHandler<CheerEvent>? CheerReceived;
 
     public async Task Start(CancellationToken cancellationToken = default)
     {
@@ -75,6 +83,10 @@ public class TwitchWebSocketService(
                     ["stream.offline"] = HandleStreamOffline,
                     ["channel.raid"] = HandleRaid,
                     ["channel.follow"] = HandleFollow,
+                    ["channel.subscribe"] = HandleSubscribe,
+                    ["channel.subscription.gift"] = HandleSubscriptionGift,
+                    ["channel.subscription.message"] = HandleSubscriptionMessage,
+                    ["channel.cheer"] = HandleCheer,
                 };
 
                 // Subscriptions created from the welcome message must survive the caller's
@@ -189,10 +201,14 @@ public class TwitchWebSocketService(
             await RefreshStreamStatusAsync(cancellationToken);
             await SubscribeToChannelRaid(sessionId, cancellationToken);
             await SubscribeToChannelFollow(sessionId, cancellationToken);
+            await SubscribeToChannelSubscribe(sessionId, cancellationToken);
+            await SubscribeToChannelSubscriptionGift(sessionId, cancellationToken);
+            await SubscribeToChannelSubscriptionMessage(sessionId, cancellationToken);
+            await SubscribeToChannelCheer(sessionId, cancellationToken);
         }
         else
         {
-            logger.LogWarning("No broadcaster token stored, skipping channel points, stream status, raid, and follow subscriptions. Log in with the broadcaster account to enable them.");
+            logger.LogWarning("No broadcaster token stored, skipping channel points, stream status, raid, follow, subscription, and cheer subscriptions. Log in with the broadcaster account to enable them.");
         }
     }
 
@@ -381,6 +397,98 @@ public class TwitchWebSocketService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to parse channel.follow notification");
+        }
+    }
+
+    private void HandleSubscribe(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<SubscribeNotification>(rawMessage);
+            var subscribe = notification?.Payload.Event;
+            if (subscribe is null)
+            {
+                logger.LogWarning("channel.subscribe notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("New subscriber #{Broadcaster}: {User} (tier {Tier}, gift: {IsGift})",
+                subscribe.BroadcasterUserLogin, subscribe.UserLogin, subscribe.Tier, subscribe.IsGift);
+
+            SubscribeReceived?.Invoke(this, subscribe);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.subscribe notification");
+        }
+    }
+
+    private void HandleSubscriptionGift(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<SubscriptionGiftNotification>(rawMessage);
+            var gift = notification?.Payload.Event;
+            if (gift is null)
+            {
+                logger.LogWarning("channel.subscription.gift notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Gift subs #{Broadcaster}: {User} gifted {Total} (tier {Tier})",
+                gift.BroadcasterUserLogin, gift.IsAnonymous ? "Anonymous" : gift.UserLogin, gift.Total, gift.Tier);
+
+            SubscriptionGiftReceived?.Invoke(this, gift);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.subscription.gift notification");
+        }
+    }
+
+    private void HandleSubscriptionMessage(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<SubscriptionMessageNotification>(rawMessage);
+            var resub = notification?.Payload.Event;
+            if (resub is null)
+            {
+                logger.LogWarning("channel.subscription.message notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Resub #{Broadcaster}: {User} ({CumulativeMonths} months, tier {Tier})",
+                resub.BroadcasterUserLogin, resub.UserLogin, resub.CumulativeMonths, resub.Tier);
+
+            SubscriptionMessageReceived?.Invoke(this, resub);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.subscription.message notification");
+        }
+    }
+
+    private void HandleCheer(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<CheerNotification>(rawMessage);
+            var cheer = notification?.Payload.Event;
+            if (cheer is null)
+            {
+                logger.LogWarning("channel.cheer notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Cheer #{Broadcaster}: {User} ({Bits} bits)",
+                cheer.BroadcasterUserLogin, cheer.IsAnonymous ? "Anonymous" : cheer.UserLogin, cheer.Bits);
+
+            CheerReceived?.Invoke(this, cheer);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.cheer notification");
         }
     }
 
@@ -650,6 +758,175 @@ public class TwitchWebSocketService(
         }
     }
 
+    private async Task SubscribeToChannelSubscribe(string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type = "channel.subscribe",
+                version = "1",
+                condition = new
+                {
+                    broadcaster_user_id = broadcasterId,
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId,
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created channel.subscribe subscription. Response: {Response}", content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating channel.subscribe subscription");
+        }
+    }
+
+    private async Task SubscribeToChannelSubscriptionGift(string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type = "channel.subscription.gift",
+                version = "1",
+                condition = new
+                {
+                    broadcaster_user_id = broadcasterId,
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId,
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created channel.subscription.gift subscription. Response: {Response}", content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating channel.subscription.gift subscription");
+        }
+    }
+
+    private async Task SubscribeToChannelSubscriptionMessage(string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type = "channel.subscription.message",
+                version = "1",
+                condition = new
+                {
+                    broadcaster_user_id = broadcasterId,
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId,
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created channel.subscription.message subscription. Response: {Response}", content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating channel.subscription.message subscription");
+        }
+    }
+
+    // Requires bits:read on the broadcaster token.
+    private async Task SubscribeToChannelCheer(string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type = "channel.cheer",
+                version = "1",
+                condition = new
+                {
+                    broadcaster_user_id = broadcasterId,
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId,
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created channel.cheer subscription. Response: {Response}", content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating channel.cheer subscription");
+        }
+    }
+
     // stream.online/offline only fire on transitions, so a stream already live when the
     // service starts (or reconnects) would otherwise never be reflected. This Helix lookup
     // seeds the initial state; the EventSub handlers keep it current from there.
@@ -692,5 +969,9 @@ public class TwitchWebSocketService(
         await RefreshStreamStatusAsync(cancellationToken);
         await SubscribeToChannelRaid(sessionId: sessionId, cancellationToken);
         await SubscribeToChannelFollow(sessionId: sessionId, cancellationToken);
+        await SubscribeToChannelSubscribe(sessionId: sessionId, cancellationToken);
+        await SubscribeToChannelSubscriptionGift(sessionId: sessionId, cancellationToken);
+        await SubscribeToChannelSubscriptionMessage(sessionId: sessionId, cancellationToken);
+        await SubscribeToChannelCheer(sessionId: sessionId, cancellationToken);
     }
 }
