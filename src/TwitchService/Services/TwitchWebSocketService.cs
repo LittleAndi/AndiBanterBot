@@ -24,6 +24,9 @@ public interface ITwitchWebSocketService
     event EventHandler<GoalEvent>? GoalBeginReceived;
     event EventHandler<GoalEvent>? GoalProgressReceived;
     event EventHandler<GoalEndEvent>? GoalEndReceived;
+    event EventHandler<BanEvent>? BanReceived;
+    event EventHandler<UnbanEvent>? UnbanReceived;
+    event EventHandler<ModerateEvent>? ModerateReceived;
 }
 
 public record TwitchWebSocketStatus(bool Connected, string SessionId, DateTime LastMessageAtUtc, TimeSpan KeepaliveTimeout);
@@ -86,6 +89,9 @@ public class TwitchWebSocketService(
     public event EventHandler<GoalEvent>? GoalBeginReceived;
     public event EventHandler<GoalEvent>? GoalProgressReceived;
     public event EventHandler<GoalEndEvent>? GoalEndReceived;
+    public event EventHandler<BanEvent>? BanReceived;
+    public event EventHandler<UnbanEvent>? UnbanReceived;
+    public event EventHandler<ModerateEvent>? ModerateReceived;
 
     // Per-connection mutable state. Everything that used to be an instance field tracking
     // "the" connection now lives here once per identity (Bot, Broadcaster).
@@ -196,6 +202,9 @@ public class TwitchWebSocketService(
             ["channel.goal.begin"] = HandleGoalBegin,
             ["channel.goal.progress"] = HandleGoalProgress,
             ["channel.goal.end"] = HandleGoalEnd,
+            ["channel.ban"] = HandleBan,
+            ["channel.unban"] = HandleUnban,
+            ["channel.moderate"] = HandleModerate,
         };
         notificationHandlersBuilt = true;
     }
@@ -291,6 +300,9 @@ public class TwitchWebSocketService(
             await SubscribeToGoalBegin(connection.SessionId, cancellationToken);
             await SubscribeToGoalProgress(connection.SessionId, cancellationToken);
             await SubscribeToGoalEnd(connection.SessionId, cancellationToken);
+            await SubscribeToChannelBan(connection.SessionId, cancellationToken);
+            await SubscribeToChannelUnban(connection.SessionId, cancellationToken);
+            await SubscribeToChannelModerate(connection.SessionId, cancellationToken);
         }
     }
 
@@ -721,6 +733,75 @@ public class TwitchWebSocketService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to parse channel.goal.end notification");
+        }
+    }
+
+    private void HandleBan(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<BanNotification>(rawMessage);
+            var ban = notification?.Payload.Event;
+            if (ban is null)
+            {
+                logger.LogWarning("channel.ban notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Ban #{Broadcaster}: {User} by {Moderator}",
+                ban.BroadcasterUserLogin, ban.UserLogin, ban.ModeratorUserLogin);
+
+            BanReceived?.Invoke(this, ban);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.ban notification");
+        }
+    }
+
+    private void HandleUnban(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<UnbanNotification>(rawMessage);
+            var unban = notification?.Payload.Event;
+            if (unban is null)
+            {
+                logger.LogWarning("channel.unban notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Unban #{Broadcaster}: {User} by {Moderator}",
+                unban.BroadcasterUserLogin, unban.UserLogin, unban.ModeratorUserLogin);
+
+            UnbanReceived?.Invoke(this, unban);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.unban notification");
+        }
+    }
+
+    private void HandleModerate(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<ModerateNotification>(rawMessage);
+            var moderate = notification?.Payload.Event;
+            if (moderate is null)
+            {
+                logger.LogWarning("channel.moderate notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Moderate #{Broadcaster}: {Action} by {Moderator}",
+                moderate.BroadcasterUserLogin, moderate.Action, moderate.ModeratorUserLogin);
+
+            ModerateReceived?.Invoke(this, moderate);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.moderate notification");
         }
     }
 
@@ -1263,6 +1344,139 @@ public class TwitchWebSocketService(
         }
     }
 
+    // Requires channel:moderate on the broadcaster token. Only fires for permanent bans -
+    // timeouts arrive via channel.moderate's "timeout" action instead.
+    private async Task SubscribeToChannelBan(string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type = "channel.ban",
+                version = "1",
+                condition = new
+                {
+                    broadcaster_user_id = broadcasterId,
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId,
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created channel.ban subscription. Response: {Response}", content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating channel.ban subscription");
+        }
+    }
+
+    // Requires channel:moderate on the broadcaster token.
+    private async Task SubscribeToChannelUnban(string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type = "channel.unban",
+                version = "1",
+                condition = new
+                {
+                    broadcaster_user_id = broadcasterId,
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId,
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created channel.unban subscription. Response: {Response}", content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating channel.unban subscription");
+        }
+    }
+
+    // v2 requires channel:moderate and a moderator_user_id in the condition, same as
+    // channel.follow v2. The broadcaster is a moderator of their own channel, so their
+    // own user id satisfies both. v2 (over v1) adds the "warn" action to the event stream.
+    private async Task SubscribeToChannelModerate(string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type = "channel.moderate",
+                version = "2",
+                condition = new
+                {
+                    broadcaster_user_id = broadcasterId,
+                    moderator_user_id = broadcasterId,
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId,
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created channel.moderate subscription. Response: {Response}", content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating channel.moderate subscription");
+        }
+    }
+
     // stream.online/offline only fire on transitions, so a stream already live when the
     // service starts (or reconnects) would otherwise never be reflected. This Helix lookup
     // seeds the initial state; the EventSub handlers keep it current from there.
@@ -1315,5 +1529,8 @@ public class TwitchWebSocketService(
         await SubscribeToGoalBegin(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToGoalProgress(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToGoalEnd(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToChannelBan(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToChannelUnban(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToChannelModerate(sessionId: broadcaster.SessionId, cancellationToken);
     }
 }
