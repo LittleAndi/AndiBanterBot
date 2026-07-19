@@ -82,3 +82,10 @@ public record HypeTrainEndEvent
     [JsonPropertyName("ended_at")]
     public DateTimeOffset EndedAt { get; init; }
 }
+
+/// <summary>
+/// Current hype train state as known to the service, or null when no hype train is active.
+/// Set from begin/progress notifications and cleared on end - unlike stream status, there's
+/// no need to remember the last finished train's numbers once it's over.
+/// </summary>
+public record HypeTrainStatusSnapshot(int Level, int Total, int Progress, int Goal);
