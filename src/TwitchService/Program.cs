@@ -157,7 +157,78 @@ app.MapPost("chat/messages", async (
     return Results.Problem(result.DropReason ?? "Message was not sent", statusCode: StatusCodes.Status502BadGateway);
 });
 
+app.MapPost("rewards", async (
+    CreateRewardHttpRequest request,
+    ITwitchRewardService rewardService,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Title))
+    {
+        return Results.BadRequest("Title must not be empty");
+    }
+
+    if (request.Cost <= 0)
+    {
+        return Results.BadRequest("Cost must be greater than zero");
+    }
+
+    var result = await rewardService.CreateRewardAsync(
+        new CreateRewardRequest(
+            request.Title,
+            request.Cost,
+            request.Prompt,
+            request.IsEnabled,
+            request.BackgroundColor,
+            request.IsUserInputRequired,
+            request.ShouldRedemptionsSkipRequestQueue),
+        cancellationToken);
+
+    return result.Success
+        ? Results.Ok(ToRewardResponse(result.Reward!))
+        : Results.Problem(result.Error ?? "Failed to create reward", statusCode: StatusCodes.Status502BadGateway);
+});
+
+app.MapPatch("rewards/{rewardId}", async (
+    string rewardId,
+    UpdateRewardHttpRequest request,
+    ITwitchRewardService rewardService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await rewardService.UpdateRewardAsync(
+        rewardId,
+        new UpdateRewardRequest(
+            request.Title,
+            request.Cost,
+            request.Prompt,
+            request.IsEnabled,
+            request.BackgroundColor,
+            request.IsUserInputRequired,
+            request.IsPaused,
+            request.ShouldRedemptionsSkipRequestQueue),
+        cancellationToken);
+
+    return result.Success
+        ? Results.Ok(ToRewardResponse(result.Reward!))
+        : Results.Problem(result.Error ?? "Failed to update reward", statusCode: StatusCodes.Status502BadGateway);
+});
+
+app.MapPatch("rewards/{rewardId}/pause", async (
+    string rewardId,
+    SetRewardPausedRequest request,
+    ITwitchRewardService rewardService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await rewardService.SetPausedAsync(rewardId, request.IsPaused, cancellationToken);
+
+    return result.Success
+        ? Results.Ok(ToRewardResponse(result.Reward!))
+        : Results.Problem(result.Error ?? "Failed to update reward status", statusCode: StatusCodes.Status502BadGateway);
+});
+
 app.Run();
+
+static RewardResponse ToRewardResponse(CustomReward reward) =>
+    new(reward.Id, reward.Title, reward.Cost, reward.Prompt, reward.IsEnabled, reward.IsPaused, reward.BackgroundColor);
 
 public record AuthCallbackRequest(string Code, string Scopes, string RedirectUri);
 
@@ -190,3 +261,26 @@ public record PredictionStatusResponse(bool IsActive, string Title, bool Locked,
 public record ActivityFeedItem(string Kind, DateTimeOffset OccurredAt, string DisplayName, string Summary);
 
 public record ModerationLogItem(string Kind, DateTimeOffset OccurredAt, string ModeratorName, string TargetName, string Summary);
+
+public record CreateRewardHttpRequest(
+    string Title,
+    int Cost,
+    string? Prompt = null,
+    bool IsEnabled = true,
+    string? BackgroundColor = null,
+    bool IsUserInputRequired = false,
+    bool ShouldRedemptionsSkipRequestQueue = false);
+
+public record UpdateRewardHttpRequest(
+    string? Title = null,
+    int? Cost = null,
+    string? Prompt = null,
+    bool? IsEnabled = null,
+    string? BackgroundColor = null,
+    bool? IsUserInputRequired = null,
+    bool? IsPaused = null,
+    bool? ShouldRedemptionsSkipRequestQueue = null);
+
+public record SetRewardPausedRequest(bool IsPaused);
+
+public record RewardResponse(string Id, string Title, int Cost, string Prompt, bool IsEnabled, bool IsPaused, string BackgroundColor);
