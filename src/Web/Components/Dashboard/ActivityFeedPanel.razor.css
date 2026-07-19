@@ -111,3 +111,9 @@
         background: var(--color-surface-raised);
     }
 }
+
+@media (min-width: 641px) {
+    .activity-list {
+        max-height: 28rem;
+    }
+}

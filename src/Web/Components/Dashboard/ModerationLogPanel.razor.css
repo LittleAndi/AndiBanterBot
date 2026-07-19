@@ -114,3 +114,9 @@
         background: var(--color-surface-raised);
     }
 }
+
+@media (min-width: 641px) {
+    .moderation-list {
+        max-height: 28rem;
+    }
+}
