@@ -69,6 +69,12 @@ app.MapGet("auth/status", (ITwitchTokenStore tokenStore, ITwitchWebSocketService
             : null;
 });
 
+app.MapGet("stream/status", (ITwitchWebSocketService twitchWebSocketService) =>
+{
+    var status = twitchWebSocketService.GetStreamStatus();
+    return Results.Ok(new StreamStatusResponse(status.IsLive, status.StartedAt));
+});
+
 app.MapPost("chat/messages", async (
     SendChatMessageRequest request,
     ITwitchChatService chatService,
@@ -109,3 +115,5 @@ public record AuthCallbackResponse(string Role, string Login);
 public record RoleStatus(string Login, bool NeedsLogin, string[] Scopes);
 
 public record AuthStatusResponse(RoleStatus? Bot, RoleStatus? Broadcaster, bool WebSocketConnected, DateTime? LastMessageAtUtc);
+
+public record StreamStatusResponse(bool? IsLive, DateTimeOffset? StartedAt);
