@@ -19,6 +19,9 @@ public interface ITwitchWebSocketService
     event EventHandler<HypeTrainEvent>? HypeTrainBeginReceived;
     event EventHandler<HypeTrainEvent>? HypeTrainProgressReceived;
     event EventHandler<HypeTrainEndEvent>? HypeTrainEndReceived;
+    event EventHandler<GoalEvent>? GoalBeginReceived;
+    event EventHandler<GoalEvent>? GoalProgressReceived;
+    event EventHandler<GoalEndEvent>? GoalEndReceived;
 }
 
 public record TwitchWebSocketStatus(bool Connected, string SessionId, DateTime LastMessageAtUtc, TimeSpan KeepaliveTimeout);
@@ -76,6 +79,9 @@ public class TwitchWebSocketService(
     public event EventHandler<HypeTrainEvent>? HypeTrainBeginReceived;
     public event EventHandler<HypeTrainEvent>? HypeTrainProgressReceived;
     public event EventHandler<HypeTrainEndEvent>? HypeTrainEndReceived;
+    public event EventHandler<GoalEvent>? GoalBeginReceived;
+    public event EventHandler<GoalEvent>? GoalProgressReceived;
+    public event EventHandler<GoalEndEvent>? GoalEndReceived;
 
     // Per-connection mutable state. Everything that used to be an instance field tracking
     // "the" connection now lives here once per identity (Bot, Broadcaster).
@@ -179,6 +185,9 @@ public class TwitchWebSocketService(
             ["channel.hype_train.begin"] = HandleHypeTrainBegin,
             ["channel.hype_train.progress"] = HandleHypeTrainProgress,
             ["channel.hype_train.end"] = HandleHypeTrainEnd,
+            ["channel.goal.begin"] = HandleGoalBegin,
+            ["channel.goal.progress"] = HandleGoalProgress,
+            ["channel.goal.end"] = HandleGoalEnd,
         };
         notificationHandlersBuilt = true;
     }
@@ -271,6 +280,9 @@ public class TwitchWebSocketService(
             await SubscribeToHypeTrainBegin(connection.SessionId, cancellationToken);
             await SubscribeToHypeTrainProgress(connection.SessionId, cancellationToken);
             await SubscribeToHypeTrainEnd(connection.SessionId, cancellationToken);
+            await SubscribeToGoalBegin(connection.SessionId, cancellationToken);
+            await SubscribeToGoalProgress(connection.SessionId, cancellationToken);
+            await SubscribeToGoalEnd(connection.SessionId, cancellationToken);
         }
     }
 
@@ -620,6 +632,75 @@ public class TwitchWebSocketService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to parse channel.hype_train.end notification");
+        }
+    }
+
+    private void HandleGoalBegin(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<GoalNotification>(rawMessage);
+            var goal = notification?.Payload.Event;
+            if (goal is null)
+            {
+                logger.LogWarning("channel.goal.begin notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Goal started #{Broadcaster}: {Type} {Current}/{Target}",
+                goal.BroadcasterUserLogin, goal.Type, goal.CurrentAmount, goal.TargetAmount);
+
+            GoalBeginReceived?.Invoke(this, goal);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.goal.begin notification");
+        }
+    }
+
+    private void HandleGoalProgress(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<GoalNotification>(rawMessage);
+            var goal = notification?.Payload.Event;
+            if (goal is null)
+            {
+                logger.LogWarning("channel.goal.progress notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Goal progress #{Broadcaster}: {Type} {Current}/{Target}",
+                goal.BroadcasterUserLogin, goal.Type, goal.CurrentAmount, goal.TargetAmount);
+
+            GoalProgressReceived?.Invoke(this, goal);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.goal.progress notification");
+        }
+    }
+
+    private void HandleGoalEnd(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<GoalEndNotification>(rawMessage);
+            var goal = notification?.Payload.Event;
+            if (goal is null)
+            {
+                logger.LogWarning("channel.goal.end notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Goal ended #{Broadcaster}: {Type} {Current}/{Target} (achieved: {IsAchieved})",
+                goal.BroadcasterUserLogin, goal.Type, goal.CurrentAmount, goal.TargetAmount, goal.IsAchieved);
+
+            GoalEndReceived?.Invoke(this, goal);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.goal.end notification");
         }
     }
 
@@ -1110,6 +1191,58 @@ public class TwitchWebSocketService(
         }
     }
 
+    // Requires channel:read:goals on the broadcaster token.
+    private async Task SubscribeToGoalBegin(string? sessionId, CancellationToken cancellationToken) =>
+        await SubscribeToGoal("channel.goal.begin", sessionId, cancellationToken);
+
+    private async Task SubscribeToGoalProgress(string? sessionId, CancellationToken cancellationToken) =>
+        await SubscribeToGoal("channel.goal.progress", sessionId, cancellationToken);
+
+    private async Task SubscribeToGoalEnd(string? sessionId, CancellationToken cancellationToken) =>
+        await SubscribeToGoal("channel.goal.end", sessionId, cancellationToken);
+
+    private async Task SubscribeToGoal(string type, string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type,
+                version = "1",
+                condition = new
+                {
+                    broadcaster_user_id = broadcasterId,
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId,
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created {Type} subscription. Response: {Response}", type, content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating {Type} subscription", type);
+        }
+    }
+
     // stream.online/offline only fire on transitions, so a stream already live when the
     // service starts (or reconnects) would otherwise never be reflected. This Helix lookup
     // seeds the initial state; the EventSub handlers keep it current from there.
@@ -1159,5 +1292,8 @@ public class TwitchWebSocketService(
         await SubscribeToHypeTrainBegin(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToHypeTrainProgress(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToHypeTrainEnd(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToGoalBegin(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToGoalProgress(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToGoalEnd(sessionId: broadcaster.SessionId, cancellationToken);
     }
 }
