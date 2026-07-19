@@ -27,6 +27,10 @@ public interface ITwitchWebSocketService
     event EventHandler<PollEvent>? PollBeginReceived;
     event EventHandler<PollEvent>? PollProgressReceived;
     event EventHandler<PollEndEvent>? PollEndReceived;
+    event EventHandler<PredictionEvent>? PredictionBeginReceived;
+    event EventHandler<PredictionEvent>? PredictionProgressReceived;
+    event EventHandler<PredictionLockEvent>? PredictionLockReceived;
+    event EventHandler<PredictionEndEvent>? PredictionEndReceived;
     event EventHandler<BanEvent>? BanReceived;
     event EventHandler<UnbanEvent>? UnbanReceived;
     event EventHandler<ModerateEvent>? ModerateReceived;
@@ -95,6 +99,10 @@ public class TwitchWebSocketService(
     public event EventHandler<PollEvent>? PollBeginReceived;
     public event EventHandler<PollEvent>? PollProgressReceived;
     public event EventHandler<PollEndEvent>? PollEndReceived;
+    public event EventHandler<PredictionEvent>? PredictionBeginReceived;
+    public event EventHandler<PredictionEvent>? PredictionProgressReceived;
+    public event EventHandler<PredictionLockEvent>? PredictionLockReceived;
+    public event EventHandler<PredictionEndEvent>? PredictionEndReceived;
     public event EventHandler<BanEvent>? BanReceived;
     public event EventHandler<UnbanEvent>? UnbanReceived;
     public event EventHandler<ModerateEvent>? ModerateReceived;
@@ -211,6 +219,10 @@ public class TwitchWebSocketService(
             ["channel.poll.begin"] = HandlePollBegin,
             ["channel.poll.progress"] = HandlePollProgress,
             ["channel.poll.end"] = HandlePollEnd,
+            ["channel.prediction.begin"] = HandlePredictionBegin,
+            ["channel.prediction.progress"] = HandlePredictionProgress,
+            ["channel.prediction.lock"] = HandlePredictionLock,
+            ["channel.prediction.end"] = HandlePredictionEnd,
             ["channel.ban"] = HandleBan,
             ["channel.unban"] = HandleUnban,
             ["channel.moderate"] = HandleModerate,
@@ -312,6 +324,10 @@ public class TwitchWebSocketService(
             await SubscribeToPollBegin(connection.SessionId, cancellationToken);
             await SubscribeToPollProgress(connection.SessionId, cancellationToken);
             await SubscribeToPollEnd(connection.SessionId, cancellationToken);
+            await SubscribeToPredictionBegin(connection.SessionId, cancellationToken);
+            await SubscribeToPredictionProgress(connection.SessionId, cancellationToken);
+            await SubscribeToPredictionLock(connection.SessionId, cancellationToken);
+            await SubscribeToPredictionEnd(connection.SessionId, cancellationToken);
             await SubscribeToChannelBan(connection.SessionId, cancellationToken);
             await SubscribeToChannelUnban(connection.SessionId, cancellationToken);
             await SubscribeToChannelModerate(connection.SessionId, cancellationToken);
@@ -812,6 +828,95 @@ public class TwitchWebSocketService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to parse channel.poll.end notification");
+        }
+    }
+
+    private void HandlePredictionBegin(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<PredictionNotification>(rawMessage);
+            var prediction = notification?.Payload.Event;
+            if (prediction is null)
+            {
+                logger.LogWarning("channel.prediction.begin notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Prediction started #{Broadcaster}: {Title}", prediction.BroadcasterUserLogin, prediction.Title);
+
+            PredictionBeginReceived?.Invoke(this, prediction);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.prediction.begin notification");
+        }
+    }
+
+    private void HandlePredictionProgress(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<PredictionNotification>(rawMessage);
+            var prediction = notification?.Payload.Event;
+            if (prediction is null)
+            {
+                logger.LogWarning("channel.prediction.progress notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Prediction progress #{Broadcaster}: {Title}", prediction.BroadcasterUserLogin, prediction.Title);
+
+            PredictionProgressReceived?.Invoke(this, prediction);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.prediction.progress notification");
+        }
+    }
+
+    private void HandlePredictionLock(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<PredictionLockNotification>(rawMessage);
+            var prediction = notification?.Payload.Event;
+            if (prediction is null)
+            {
+                logger.LogWarning("channel.prediction.lock notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Prediction locked #{Broadcaster}: {Title}", prediction.BroadcasterUserLogin, prediction.Title);
+
+            PredictionLockReceived?.Invoke(this, prediction);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.prediction.lock notification");
+        }
+    }
+
+    private void HandlePredictionEnd(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<PredictionEndNotification>(rawMessage);
+            var prediction = notification?.Payload.Event;
+            if (prediction is null)
+            {
+                logger.LogWarning("channel.prediction.end notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Prediction ended #{Broadcaster}: {Title} (status: {Status})",
+                prediction.BroadcasterUserLogin, prediction.Title, prediction.Status);
+
+            PredictionEndReceived?.Invoke(this, prediction);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.prediction.end notification");
         }
     }
 
@@ -1475,6 +1580,62 @@ public class TwitchWebSocketService(
         }
     }
 
+    // Requires channel:read:predictions (or channel:manage:predictions, already granted) on
+    // the broadcaster token.
+    private async Task SubscribeToPredictionBegin(string? sessionId, CancellationToken cancellationToken) =>
+        await SubscribeToPrediction("channel.prediction.begin", sessionId, cancellationToken);
+
+    private async Task SubscribeToPredictionProgress(string? sessionId, CancellationToken cancellationToken) =>
+        await SubscribeToPrediction("channel.prediction.progress", sessionId, cancellationToken);
+
+    private async Task SubscribeToPredictionLock(string? sessionId, CancellationToken cancellationToken) =>
+        await SubscribeToPrediction("channel.prediction.lock", sessionId, cancellationToken);
+
+    private async Task SubscribeToPredictionEnd(string? sessionId, CancellationToken cancellationToken) =>
+        await SubscribeToPrediction("channel.prediction.end", sessionId, cancellationToken);
+
+    private async Task SubscribeToPrediction(string type, string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type,
+                version = "1",
+                condition = new
+                {
+                    broadcaster_user_id = broadcasterId,
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId,
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created {Type} subscription. Response: {Response}", type, content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating {Type} subscription", type);
+        }
+    }
+
     // Requires channel:moderate on the broadcaster token. Only fires for permanent bans -
     // timeouts arrive via channel.moderate's "timeout" action instead.
     private async Task SubscribeToChannelBan(string? sessionId, CancellationToken cancellationToken)
@@ -1663,6 +1824,10 @@ public class TwitchWebSocketService(
         await SubscribeToPollBegin(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToPollProgress(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToPollEnd(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToPredictionBegin(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToPredictionProgress(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToPredictionLock(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToPredictionEnd(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToChannelBan(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToChannelUnban(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToChannelModerate(sessionId: broadcaster.SessionId, cancellationToken);
