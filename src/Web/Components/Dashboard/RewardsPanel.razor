@@ -2,7 +2,7 @@
 @inject TwitchApiClient TwitchApiClient
 
 <div class="rewards-panel">
-    <h2 class="rewards-title">Channel point rewards</h2>
+    <h2 class="rewards-title">Your rewards</h2>
 
     @if (Loading)
     {
@@ -18,7 +18,7 @@
     }
     else if (Items.Count == 0)
     {
-        <p class="rewards-empty">No custom rewards yet — create one on Twitch to see it here.</p>
+        <p class="rewards-empty">No AndiBanterBot rewards yet — create one above to get started.</p>
     }
     else
     {

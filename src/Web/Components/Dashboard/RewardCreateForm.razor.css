@@ -1,0 +1,132 @@
+.reward-create {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: var(--space-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.reward-create-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0;
+}
+
+.reward-create-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--space-md);
+}
+
+.reward-create-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+}
+
+.reward-create-field--wide {
+    grid-column: 1 / -1;
+}
+
+.reward-create-optional {
+    color: var(--color-muted);
+    font-weight: 400;
+}
+
+.reward-create-input {
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: var(--space-sm) var(--space-md);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    transition: border-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.reward-create-textarea {
+    resize: vertical;
+    min-height: 3.5rem;
+}
+
+.reward-create-input::placeholder {
+    color: var(--color-muted);
+}
+
+.reward-create-input:focus-visible,
+.reward-create-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.reward-create-color {
+    width: 100%;
+    height: 2.5rem;
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: var(--space-2xs);
+    cursor: pointer;
+}
+
+.reward-create-checkbox {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    cursor: pointer;
+}
+
+.reward-create-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.reward-create-submit {
+    flex: none;
+    background-color: var(--color-primary);
+    color: var(--color-primary-ink);
+    border: none;
+    border-radius: 6px;
+    padding: var(--space-sm) var(--space-lg);
+    font-size: var(--text-base);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color var(--duration-fast) var(--ease-out-quart), opacity var(--duration-fast) var(--ease-out-quart);
+}
+
+.reward-create-submit:hover:not(:disabled) {
+    background-color: color-mix(in oklch, var(--color-primary) 85%, white);
+}
+
+.reward-create-submit:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+.reward-create-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.reward-create-feedback {
+    font-size: var(--text-sm);
+    margin: 0;
+}
+
+.reward-create-feedback--ok {
+    color: var(--color-primary);
+}
+
+.reward-create-feedback--error {
+    color: var(--color-accent);
+}

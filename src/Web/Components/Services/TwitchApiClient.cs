@@ -146,6 +146,28 @@ public class TwitchApiClient(IHttpClientFactory httpClientFactory)
         }
     }
 
+    public async Task<CreateRewardResult> CreateReward(CreateRewardRequest request)
+    {
+        try
+        {
+            var response = await httpClient.PostAsJsonAsync("rewards", request);
+            if (response.IsSuccessStatusCode)
+            {
+                var reward = await response.Content.ReadFromJsonAsync<RewardItem>();
+                return reward is not null
+                    ? new CreateRewardResult(true, reward, null)
+                    : new CreateRewardResult(false, null, "Empty response from Twitch service");
+            }
+
+            var error = await response.Content.ReadAsStringAsync();
+            return new CreateRewardResult(false, null, $"Twitch service returned {(int)response.StatusCode}: {error}");
+        }
+        catch (HttpRequestException ex)
+        {
+            return new CreateRewardResult(false, null, $"Could not reach the Twitch service: {ex.Message}");
+        }
+    }
+
     public async Task<SetRewardPausedResult> SetRewardPaused(string rewardId, bool isPaused)
     {
         try
@@ -220,6 +242,17 @@ public record ActivityFeedItem(string Kind, DateTimeOffset OccurredAt, string Di
 public record ModerationLogItem(string Kind, DateTimeOffset OccurredAt, string ModeratorName, string TargetName, string Summary);
 
 public record RewardItem(string Id, string Title, int Cost, string Prompt, bool IsEnabled, bool IsPaused, string BackgroundColor);
+
+public record CreateRewardRequest(
+    string Title,
+    int Cost,
+    string? Prompt = null,
+    bool IsEnabled = true,
+    string? BackgroundColor = null,
+    bool IsUserInputRequired = false,
+    bool ShouldRedemptionsSkipRequestQueue = false);
+
+public record CreateRewardResult(bool Success, RewardItem? Reward, string? Error);
 
 public record SetRewardPausedRequest(bool IsPaused);
 

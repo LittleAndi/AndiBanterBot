@@ -1,0 +1,20 @@
+.rewards-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+    max-width: 48rem;
+    padding-bottom: var(--space-2xl);
+}
+
+.rewards-page-title {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--color-ink);
+    margin: 0;
+}
+
+.rewards-page-subtitle {
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+    margin: calc(var(--space-sm) * -1) 0 0;
+}

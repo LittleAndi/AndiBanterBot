@@ -64,7 +64,10 @@ public class TwitchRewardService(
             return new RewardListResult(false, [], $"Could not resolve broadcaster id for {broadcasterUsername}");
         }
 
-        var httpRequest = new HttpRequestMessage(HttpMethod.Get, $"helix/channel_points/custom_rewards?broadcaster_id={broadcasterId}");
+        // Twitch refuses to update/pause/delete a reward unless it was created by this app's
+        // Client-Id (dashboard-created rewards return 403 on write). Filtering server-side means
+        // the UI never lists a reward it can't actually act on.
+        var httpRequest = new HttpRequestMessage(HttpMethod.Get, $"helix/channel_points/custom_rewards?broadcaster_id={broadcasterId}&only_manageable_rewards=true");
         httpRequest.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
 
         var response = await twitchHttpClientUserAccess.SendAsync(httpRequest, cancellationToken);
