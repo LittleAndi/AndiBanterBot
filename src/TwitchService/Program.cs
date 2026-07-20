@@ -114,6 +114,14 @@ app.MapGet("prediction/status", (ITwitchWebSocketService twitchWebSocketService)
             status.Outcomes.Select(o => new PredictionOutcomeResponse(o.Title, o.Color, o.Users, o.ChannelPoints)).ToArray()));
 });
 
+app.MapGet("ad-break/status", (ITwitchWebSocketService twitchWebSocketService) =>
+{
+    var status = twitchWebSocketService.GetAdBreakStatus();
+    return Results.Ok(status is null
+        ? new AdBreakStatusResponse(false, null, 0, false, string.Empty)
+        : new AdBreakStatusResponse(true, status.StartedAt, status.DurationSeconds, status.IsAutomatic, status.RequesterUserName));
+});
+
 app.MapGet("activity/recent", (ITwitchActivityFeedService activityFeedService) =>
 {
     var items = activityFeedService.GetRecent()
@@ -287,6 +295,8 @@ public record PollStatusResponse(bool IsActive, string Title, PollChoiceResponse
 public record PredictionOutcomeResponse(string Title, string Color, int Users, int ChannelPoints);
 
 public record PredictionStatusResponse(bool IsActive, string Title, bool Locked, PredictionOutcomeResponse[] Outcomes);
+
+public record AdBreakStatusResponse(bool IsActive, DateTimeOffset? StartedAt, int DurationSeconds, bool IsAutomatic, string RequesterUserName);
 
 public record ActivityFeedItem(string Kind, DateTimeOffset OccurredAt, string DisplayName, string Summary);
 
