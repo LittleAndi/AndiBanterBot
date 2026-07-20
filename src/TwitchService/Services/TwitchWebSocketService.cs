@@ -1505,10 +1505,11 @@ public class TwitchWebSocketService(
     {
         try
         {
+            // Twitch retired v1 of the hype train subscription types; only v2 is accepted now.
             var subscriptionRequest = new
             {
                 type,
-                version = "1",
+                version = "2",
                 condition = new
                 {
                     broadcaster_user_id = broadcasterId,
