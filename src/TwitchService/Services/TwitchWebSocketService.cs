@@ -11,6 +11,7 @@ public interface ITwitchWebSocketService
     GoalStatusSnapshot? GetGoalStatus();
     PollStatusSnapshot? GetPollStatus();
     PredictionStatusSnapshot? GetPredictionStatus();
+    AdBreakStatusSnapshot? GetAdBreakStatus();
     event EventHandler<ChatMessageEvent>? ChatMessageReceived;
     event EventHandler<RewardRedemptionEvent>? RewardRedemptionReceived;
     event EventHandler<StreamStatusChangedEvent>? StreamStatusChanged;
@@ -36,6 +37,7 @@ public interface ITwitchWebSocketService
     event EventHandler<BanEvent>? BanReceived;
     event EventHandler<UnbanEvent>? UnbanReceived;
     event EventHandler<ModerateEvent>? ModerateReceived;
+    event EventHandler<AdBreakEvent>? AdBreakBeginReceived;
 }
 
 public record TwitchWebSocketStatus(bool Connected, string SessionId, DateTime LastMessageAtUtc, TimeSpan KeepaliveTimeout);
@@ -76,6 +78,7 @@ public class TwitchWebSocketService(
     private GoalStatusSnapshot? goalStatus;
     private PollStatusSnapshot? pollStatus;
     private PredictionStatusSnapshot? predictionStatus;
+    private AdBreakStatusSnapshot? adBreakStatus;
 
     // Each entry is a self-contained addition: a new subscription type gets its own
     // handler method and its own line here, instead of a shared branch everyone touches.
@@ -110,6 +113,7 @@ public class TwitchWebSocketService(
     public event EventHandler<BanEvent>? BanReceived;
     public event EventHandler<UnbanEvent>? UnbanReceived;
     public event EventHandler<ModerateEvent>? ModerateReceived;
+    public event EventHandler<AdBreakEvent>? AdBreakBeginReceived;
 
     // Per-connection mutable state. Everything that used to be an instance field tracking
     // "the" connection now lives here once per identity (Bot, Broadcaster).
@@ -202,6 +206,13 @@ public class TwitchWebSocketService(
 
     public PredictionStatusSnapshot? GetPredictionStatus() => predictionStatus;
 
+    // No channel.ad_break.end notification exists, so "active" is derived from
+    // StartedAt + DurationSeconds against the current time rather than cleared by an event.
+    public AdBreakStatusSnapshot? GetAdBreakStatus() =>
+        adBreakStatus is not null && DateTimeOffset.UtcNow < adBreakStatus.StartedAt.AddSeconds(adBreakStatus.DurationSeconds)
+            ? adBreakStatus
+            : null;
+
     private void EnsureNotificationHandlersBuilt()
     {
         if (notificationHandlersBuilt) return;
@@ -234,6 +245,7 @@ public class TwitchWebSocketService(
             ["channel.ban"] = HandleBan,
             ["channel.unban"] = HandleUnban,
             ["channel.moderate"] = HandleModerate,
+            ["channel.ad_break.begin"] = HandleAdBreakBegin,
         };
         notificationHandlersBuilt = true;
     }
@@ -339,6 +351,7 @@ public class TwitchWebSocketService(
             await SubscribeToChannelBan(connection.SessionId, cancellationToken);
             await SubscribeToChannelUnban(connection.SessionId, cancellationToken);
             await SubscribeToChannelModerate(connection.SessionId, cancellationToken);
+            await SubscribeToAdBreakBegin(connection.SessionId, cancellationToken);
         }
     }
 
@@ -1015,6 +1028,31 @@ public class TwitchWebSocketService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to parse channel.moderate notification");
+        }
+    }
+
+    private void HandleAdBreakBegin(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<AdBreakNotification>(rawMessage);
+            var adBreak = notification?.Payload.Event;
+            if (adBreak is null)
+            {
+                logger.LogWarning("channel.ad_break.begin notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Ad break started #{Broadcaster}: {DurationSeconds}s (automatic: {IsAutomatic})",
+                adBreak.BroadcasterUserLogin, adBreak.DurationSeconds, adBreak.IsAutomatic);
+
+            adBreakStatus = new AdBreakStatusSnapshot(adBreak.StartedAt, adBreak.DurationSeconds, adBreak.IsAutomatic, adBreak.RequesterUserName);
+
+            AdBreakBeginReceived?.Invoke(this, adBreak);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.ad_break.begin notification");
         }
     }
 
@@ -1798,6 +1836,51 @@ public class TwitchWebSocketService(
         }
     }
 
+    // Requires channel:read:ads on the broadcaster token. Twitch only sends a begin
+    // notification for ad breaks (manual or automatic) - there is no matching "end" type -
+    // so consumers derive whether a break is still running from duration_seconds/started_at.
+    private async Task SubscribeToAdBreakBegin(string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type = "channel.ad_break.begin",
+                version = "1",
+                condition = new
+                {
+                    broadcaster_user_id = broadcasterId,
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId,
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created channel.ad_break.begin subscription. Response: {Response}", content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating channel.ad_break.begin subscription");
+        }
+    }
+
     // stream.online/offline only fire on transitions, so a stream already live when the
     // service starts (or reconnects) would otherwise never be reflected. This Helix lookup
     // seeds the initial state; the EventSub handlers keep it current from there.
@@ -1860,5 +1943,6 @@ public class TwitchWebSocketService(
         await SubscribeToChannelBan(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToChannelUnban(sessionId: broadcaster.SessionId, cancellationToken);
         await SubscribeToChannelModerate(sessionId: broadcaster.SessionId, cancellationToken);
+        await SubscribeToAdBreakBegin(sessionId: broadcaster.SessionId, cancellationToken);
     }
 }
