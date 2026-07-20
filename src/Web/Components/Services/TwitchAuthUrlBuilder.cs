@@ -37,6 +37,8 @@ public class TwitchAuthUrlBuilder(IConfiguration configuration)
         "channel:read:subscriptions",
         "channel:read:vips",
         "clips:edit",
+        "moderator:manage:announcements",
+        "moderator:manage:shoutouts",
         "moderator:read:followers",
         // channel.moderate v2 EventSub requires all of these on the authorizing token,
         // beyond the broader channel:moderate scope above.

@@ -2,13 +2,16 @@ namespace Application.Features.Twitch;
 
 /// <summary>
 /// Reacts to raid/follow/sub/cheer EventSub notifications with a templated chat
-/// shoutout via ITwitchChatService, in the bot's own playful voice. A direct,
+/// message via ITwitchChatService, in the bot's own playful voice. A direct,
 /// same-process hookup rather than routing through the (currently dormant)
-/// Application project's AI chat pipeline - see issue #60 for why.
+/// Application project's AI chat pipeline - see issue #60 for why. Raids also get
+/// an official Twitch shoutout via ITwitchShoutoutService alongside the templated
+/// message, so incoming raiders show up on the raider's own channel page too.
 /// </summary>
 public class TwitchActivityChatReactionService(
     ITwitchWebSocketService twitchWebSocketService,
     ITwitchChatService twitchChatService,
+    ITwitchShoutoutService twitchShoutoutService,
     ILogger<TwitchActivityChatReactionService> logger) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)
@@ -33,8 +36,11 @@ public class TwitchActivityChatReactionService(
         return Task.CompletedTask;
     }
 
-    private void OnRaidReceived(object? sender, RaidEvent e) =>
+    private void OnRaidReceived(object? sender, RaidEvent e)
+    {
         Send(BuildRaidMessage(e));
+        Shoutout(e);
+    }
 
     private void OnFollowReceived(object? sender, FollowEvent e) =>
         Send(BuildFollowMessage(e));
@@ -76,6 +82,27 @@ public class TwitchActivityChatReactionService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to send activity chat reaction");
+        }
+    }
+
+    private void Shoutout(RaidEvent e)
+    {
+        _ = ShoutoutAsync(e);
+    }
+
+    private async Task ShoutoutAsync(RaidEvent e)
+    {
+        try
+        {
+            var result = await twitchShoutoutService.SendShoutoutAsync(e.FromBroadcasterUserLogin);
+            if (!result.Success)
+            {
+                logger.LogWarning("Raid shoutout not sent: {Error}", result.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send raid shoutout");
         }
     }
 

@@ -165,6 +165,54 @@ app.MapPost("chat/messages", async (
     return Results.Problem(result.DropReason ?? "Message was not sent", statusCode: StatusCodes.Status502BadGateway);
 });
 
+app.MapPost("chat/shoutouts", async (
+    SendShoutoutRequest request,
+    ITwitchShoutoutService shoutoutService,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.ToBroadcasterLogin))
+    {
+        return Results.BadRequest("ToBroadcasterLogin must not be empty");
+    }
+
+    var result = await shoutoutService.SendShoutoutAsync(request.ToBroadcasterLogin, cancellationToken);
+    if (result.Success)
+    {
+        return Results.Ok(new SendShoutoutResponse(true));
+    }
+
+    if (result.RateLimited)
+    {
+        return Results.Problem(result.Error ?? "Rate limited by Twitch", statusCode: StatusCodes.Status429TooManyRequests);
+    }
+
+    return Results.Problem(result.Error ?? "Failed to send shoutout", statusCode: StatusCodes.Status502BadGateway);
+});
+
+app.MapPost("chat/announcements", async (
+    SendAnnouncementRequest request,
+    ITwitchAnnouncementService announcementService,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Message))
+    {
+        return Results.BadRequest("Message must not be empty");
+    }
+
+    var result = await announcementService.SendAnnouncementAsync(request.Message, request.Color, cancellationToken);
+    if (result.Success)
+    {
+        return Results.Ok(new SendAnnouncementResponse(true));
+    }
+
+    if (result.RateLimited)
+    {
+        return Results.Problem(result.Error ?? "Rate limited by Twitch", statusCode: StatusCodes.Status429TooManyRequests);
+    }
+
+    return Results.Problem(result.Error ?? "Failed to send announcement", statusCode: StatusCodes.Status502BadGateway);
+});
+
 app.MapGet("ad-schedule", async (
     ITwitchAdScheduleService adScheduleService,
     CancellationToken cancellationToken) =>
@@ -296,6 +344,14 @@ public record AuthCallbackRequest(string Code, string Scopes, string RedirectUri
 public record SendChatMessageRequest(string Message, string? ReplyParentMessageId = null);
 
 public record SendChatMessageResponse(bool Sent, string? MessageId, string? DropReason);
+
+public record SendShoutoutRequest(string ToBroadcasterLogin);
+
+public record SendShoutoutResponse(bool Sent);
+
+public record SendAnnouncementRequest(string Message, string? Color = null);
+
+public record SendAnnouncementResponse(bool Sent);
 
 public record AuthCallbackResponse(string Role, string Login);
 
