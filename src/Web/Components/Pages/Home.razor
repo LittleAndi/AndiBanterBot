@@ -22,6 +22,10 @@
         {
             <ProgressTile Label="Community Goal" Icon="🎯" Detail="@GoalTypeLabel(goal.Type)" Current="goal.CurrentAmount" Target="goal.TargetAmount" />
         }
+        @if (adBreakStatus is { IsActive: true })
+        {
+            <AdBreakTile Status="adBreakStatus" />
+        }
         <AccountCard Title="Bot account" Role="status?.Bot" AuthorizeUrl="@botUrl" ActionLabel="Log in with bot account" />
         <AccountCard Title="Broadcaster account" Role="status?.Broadcaster" AuthorizeUrl="@streamerUrl" ActionLabel="Log in with broadcaster account" />
         <ChatSendBox />
@@ -59,6 +63,7 @@
     private GoalStatusResponse? goalStatus;
     private PollStatusResponse? pollStatus;
     private PredictionStatusResponse? predictionStatus;
+    private AdBreakStatusResponse? adBreakStatus;
     private ActivityFeedItem[]? activity;
     private ModerationLogItem[]? moderationLog;
     private bool loading = true;
@@ -91,9 +96,10 @@
         var goalStatusTask = TwitchApiClient.GetGoalStatus();
         var pollStatusTask = TwitchApiClient.GetPollStatus();
         var predictionStatusTask = TwitchApiClient.GetPredictionStatus();
+        var adBreakStatusTask = TwitchApiClient.GetAdBreakStatus();
         var activityTask = TwitchApiClient.GetRecentActivity();
         var moderationLogTask = TwitchApiClient.GetRecentModerationLog();
-        await Task.WhenAll(statusTask, streamStatusTask, hypeTrainStatusTask, goalStatusTask, pollStatusTask, predictionStatusTask, activityTask, moderationLogTask);
+        await Task.WhenAll(statusTask, streamStatusTask, hypeTrainStatusTask, goalStatusTask, pollStatusTask, predictionStatusTask, adBreakStatusTask, activityTask, moderationLogTask);
 
         status = statusTask.Result;
         streamStatus = streamStatusTask.Result;
@@ -101,6 +107,7 @@
         goalStatus = goalStatusTask.Result;
         pollStatus = pollStatusTask.Result;
         predictionStatus = predictionStatusTask.Result;
+        adBreakStatus = adBreakStatusTask.Result;
         activity = activityTask.Result;
         moderationLog = moderationLogTask.Result;
         loading = false;

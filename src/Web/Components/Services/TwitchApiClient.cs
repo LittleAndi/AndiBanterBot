@@ -103,6 +103,21 @@ public class TwitchApiClient(IHttpClientFactory httpClientFactory)
 
     // Same reasoning as GetAuthStatus: fail fast toward "unreachable" instead of
     // waiting out the standard resilience handler's retry budget.
+    public async Task<AdBreakStatusResponse?> GetAdBreakStatus()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            return await httpClient.GetFromJsonAsync<AdBreakStatusResponse>("ad-break/status", cts.Token);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    // Same reasoning as GetAuthStatus: fail fast toward "unreachable" instead of
+    // waiting out the standard resilience handler's retry budget.
     public async Task<ActivityFeedItem[]?> GetRecentActivity()
     {
         try
@@ -277,6 +292,8 @@ public record PollStatusResponse(bool IsActive, string Title, PollChoiceResponse
 public record PredictionOutcomeResponse(string Title, string Color, int Users, int ChannelPoints);
 
 public record PredictionStatusResponse(bool IsActive, string Title, bool Locked, PredictionOutcomeResponse[] Outcomes);
+
+public record AdBreakStatusResponse(bool IsActive, DateTimeOffset? StartedAt, int DurationSeconds, bool IsAutomatic, string RequesterUserName);
 
 public record ActivityFeedItem(string Kind, DateTimeOffset OccurredAt, string DisplayName, string Summary);
 
