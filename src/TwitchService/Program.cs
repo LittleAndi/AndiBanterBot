@@ -165,6 +165,26 @@ app.MapPost("chat/messages", async (
     return Results.Problem(result.DropReason ?? "Message was not sent", statusCode: StatusCodes.Status502BadGateway);
 });
 
+app.MapGet("ad-schedule", async (
+    ITwitchAdScheduleService adScheduleService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await adScheduleService.GetAdScheduleAsync(cancellationToken);
+    return result.Success
+        ? Results.Ok(ToAdScheduleResponse(result.Schedule!))
+        : Results.Problem(result.Error ?? "Failed to get ad schedule", statusCode: StatusCodes.Status502BadGateway);
+});
+
+app.MapPost("ad-schedule/snooze", async (
+    ITwitchAdScheduleService adScheduleService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await adScheduleService.SnoozeNextAdAsync(cancellationToken);
+    return result.Success
+        ? Results.Ok(new AdSnoozeResponse(result.Snooze!.SnoozeCount, result.Snooze.SnoozeRefreshAt, result.Snooze.NextAdAt))
+        : Results.Problem(result.Error ?? "Failed to snooze next ad", statusCode: StatusCodes.Status502BadGateway);
+});
+
 app.MapGet("rewards", async (
     ITwitchRewardService rewardService,
     CancellationToken cancellationToken) =>
@@ -263,6 +283,9 @@ app.MapDelete("rewards/{rewardId}", async (
 
 app.Run();
 
+static AdScheduleResponse ToAdScheduleResponse(AdSchedule schedule) =>
+    new(schedule.NextAdAt, schedule.LastAdAt, schedule.DurationSeconds, schedule.PrerollFreeTimeSeconds, schedule.SnoozeCount, schedule.SnoozeRefreshAt);
+
 static RewardResponse ToRewardResponse(CustomReward reward) =>
     new(reward.Id, reward.Title, reward.Cost, reward.Prompt, reward.IsEnabled, reward.IsPaused, reward.BackgroundColor,
         reward.IsUserInputRequired, reward.ShouldRedemptionsSkipRequestQueue,
@@ -297,6 +320,10 @@ public record PredictionOutcomeResponse(string Title, string Color, int Users, i
 public record PredictionStatusResponse(bool IsActive, string Title, bool Locked, PredictionOutcomeResponse[] Outcomes);
 
 public record AdBreakStatusResponse(bool IsActive, DateTimeOffset? StartedAt, int DurationSeconds, bool IsAutomatic, string RequesterUserName);
+
+public record AdScheduleResponse(DateTimeOffset? NextAdAt, DateTimeOffset? LastAdAt, int DurationSeconds, int PrerollFreeTimeSeconds, int SnoozeCount, DateTimeOffset? SnoozeRefreshAt);
+
+public record AdSnoozeResponse(int SnoozeCount, DateTimeOffset? SnoozeRefreshAt, DateTimeOffset? NextAdAt);
 
 public record ActivityFeedItem(string Kind, DateTimeOffset OccurredAt, string DisplayName, string Summary);
 
