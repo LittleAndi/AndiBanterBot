@@ -27,6 +27,7 @@ public class TwitchAuthUrlBuilder(IConfiguration configuration)
         "bits:read",
         "channel:manage:predictions",
         "channel:manage:redemptions",
+        "channel:manage:ads",
         "channel:moderate",
         "channel:read:ads",
         "channel:read:goals",
