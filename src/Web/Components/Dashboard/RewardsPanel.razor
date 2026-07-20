@@ -26,16 +26,92 @@
             @foreach (var reward in Items)
             {
                 <li class="rewards-item @(reward.IsPaused ? "rewards-item--paused" : "")" @key="reward.Id">
-                    <span class="rewards-status" aria-hidden="true">@(reward.IsPaused ? "⏸️" : "▶️")</span>
-                    <span class="rewards-text">
-                        <span class="rewards-name">@reward.Title</span>
-                        <span class="rewards-meta">
-                            <span class="mono">@reward.Cost pts</span> · @(reward.IsPaused ? "Paused" : "Active")
+                    @if (editingId == reward.Id)
+                    {
+                        <div class="rewards-edit">
+                            <label class="rewards-edit-field">
+                                <span>Title</span>
+                                <input class="rewards-edit-input" @bind="editTitle" @bind:event="oninput" maxlength="45" />
+                            </label>
+                            <label class="rewards-edit-field">
+                                <span>Cost</span>
+                                <input class="rewards-edit-input" type="number" min="1" @bind="editCost" @bind:event="oninput" />
+                            </label>
+                            <label class="rewards-edit-field rewards-edit-field--wide">
+                                <span>Prompt</span>
+                                <textarea class="rewards-edit-input rewards-edit-textarea" @bind="editPrompt" @bind:event="oninput" maxlength="200"></textarea>
+                            </label>
+                            <label class="rewards-edit-field">
+                                <span>Background color</span>
+                                <input class="rewards-edit-color" type="color" @bind="editBackgroundColor" />
+                            </label>
+                            <label class="rewards-edit-field">
+                                <span>Cooldown <span class="reward-create-optional">(seconds, 0 = off)</span></span>
+                                <input class="rewards-edit-input" type="number" min="0" @bind="editGlobalCooldownSeconds" @bind:event="oninput" />
+                            </label>
+                            <label class="rewards-edit-field">
+                                <span>Max per stream <span class="reward-create-optional">(0 = off)</span></span>
+                                <input class="rewards-edit-input" type="number" min="0" @bind="editMaxPerStream" @bind:event="oninput" />
+                            </label>
+                            <label class="rewards-edit-field">
+                                <span>Max per user per stream <span class="reward-create-optional">(0 = off)</span></span>
+                                <input class="rewards-edit-input" type="number" min="0" @bind="editMaxPerUserPerStream" @bind:event="oninput" />
+                            </label>
+                            <label class="rewards-edit-checkbox">
+                                <input type="checkbox" @bind="editRequiresUserInput" />
+                                <span>Require viewer text input</span>
+                            </label>
+                            <label class="rewards-edit-checkbox">
+                                <input type="checkbox" @bind="editSkipRequestQueue" />
+                                <span>Auto-fulfill (skip request queue)</span>
+                            </label>
+                            <div class="rewards-edit-actions">
+                                <button class="rewards-edit-save" @onclick="() => SaveEdit(reward)" disabled="@(savingEdit || string.IsNullOrWhiteSpace(editTitle) || editCost <= 0)">
+                                    @(savingEdit ? "Saving…" : "Save")
+                                </button>
+                                <button class="rewards-edit-cancel" @onclick="CancelEdit" disabled="@savingEdit">Cancel</button>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <span class="rewards-status" aria-hidden="true">@(reward.IsPaused ? "⏸️" : "▶️")</span>
+                        <span class="rewards-text">
+                            <span class="rewards-name">@reward.Title</span>
+                            <span class="rewards-meta">
+                                <span class="mono">@reward.Cost pts</span> · @(reward.IsPaused ? "Paused" : "Active")
+                                @if (reward.GlobalCooldownSeconds is > 0)
+                                {
+                                    <text> · ⏱️ @(reward.GlobalCooldownSeconds)s</text>
+                                }
+                                @if (reward.MaxPerStream is > 0)
+                                {
+                                    <text> · @(reward.MaxPerStream)/stream</text>
+                                }
+                                @if (reward.MaxPerUserPerStream is > 0)
+                                {
+                                    <text> · @(reward.MaxPerUserPerStream)/user</text>
+                                }
+                            </span>
                         </span>
-                    </span>
-                    <button class="rewards-toggle" @onclick="() => TogglePause(reward)" disabled="@togglingIds.Contains(reward.Id)">
-                        @(togglingIds.Contains(reward.Id) ? "…" : (reward.IsPaused ? "Unpause" : "Pause"))
-                    </button>
+                        <div class="rewards-actions">
+                            <button class="rewards-toggle" @onclick="() => TogglePause(reward)" disabled="@togglingIds.Contains(reward.Id)">
+                                @(togglingIds.Contains(reward.Id) ? "…" : (reward.IsPaused ? "Unpause" : "Pause"))
+                            </button>
+                            <button class="rewards-edit-btn" @onclick="() => StartEdit(reward)">Edit</button>
+                            @if (confirmingDeleteId == reward.Id)
+                            {
+                                <button class="rewards-delete rewards-delete--confirm" @onclick="() => ConfirmDelete(reward)" disabled="@deletingIds.Contains(reward.Id)">
+                                    @(deletingIds.Contains(reward.Id) ? "…" : "Confirm delete?")
+                                </button>
+                                <button class="rewards-edit-cancel" @onclick="CancelDelete" disabled="@deletingIds.Contains(reward.Id)">Cancel</button>
+                            }
+                            else
+                            {
+                                <button class="rewards-delete" @onclick="() => RequestDelete(reward)">Delete</button>
+                            }
+                        </div>
+                    }
                 </li>
             }
         </ul>
@@ -51,9 +127,26 @@
     [Parameter] public IReadOnlyList<RewardItem>? Items { get; set; }
     [Parameter] public bool Loading { get; set; }
     [Parameter] public EventCallback<RewardItem> OnToggled { get; set; }
+    [Parameter] public EventCallback<RewardItem> OnUpdated { get; set; }
+    [Parameter] public EventCallback<string> OnDeleted { get; set; }
 
     private readonly HashSet<string> togglingIds = [];
+    private readonly HashSet<string> deletingIds = [];
     private string? errorMessage;
+
+    private string? editingId;
+    private string editTitle = string.Empty;
+    private int editCost;
+    private string editPrompt = string.Empty;
+    private string editBackgroundColor = "#9146FF";
+    private bool editRequiresUserInput;
+    private bool editSkipRequestQueue;
+    private int editGlobalCooldownSeconds;
+    private int editMaxPerStream;
+    private int editMaxPerUserPerStream;
+    private bool savingEdit;
+
+    private string? confirmingDeleteId;
 
     private async Task TogglePause(RewardItem reward)
     {
@@ -78,6 +171,104 @@
         finally
         {
             togglingIds.Remove(reward.Id);
+        }
+    }
+
+    private void StartEdit(RewardItem reward)
+    {
+        confirmingDeleteId = null;
+        errorMessage = null;
+        editingId = reward.Id;
+        editTitle = reward.Title;
+        editCost = reward.Cost;
+        editPrompt = reward.Prompt;
+        editBackgroundColor = string.IsNullOrEmpty(reward.BackgroundColor) ? "#9146FF" : reward.BackgroundColor;
+        editRequiresUserInput = reward.IsUserInputRequired;
+        editSkipRequestQueue = reward.ShouldRedemptionsSkipRequestQueue;
+        editGlobalCooldownSeconds = reward.GlobalCooldownSeconds ?? 0;
+        editMaxPerStream = reward.MaxPerStream ?? 0;
+        editMaxPerUserPerStream = reward.MaxPerUserPerStream ?? 0;
+    }
+
+    private void CancelEdit()
+    {
+        editingId = null;
+    }
+
+    private async Task SaveEdit(RewardItem reward)
+    {
+        if (savingEdit || string.IsNullOrWhiteSpace(editTitle) || editCost <= 0)
+        {
+            return;
+        }
+
+        savingEdit = true;
+        errorMessage = null;
+        try
+        {
+            var result = await TwitchApiClient.UpdateReward(reward.Id, new UpdateRewardRequest(
+                editTitle.Trim(),
+                editCost,
+                editPrompt.Trim(),
+                BackgroundColor: editBackgroundColor,
+                IsUserInputRequired: editRequiresUserInput,
+                ShouldRedemptionsSkipRequestQueue: editSkipRequestQueue,
+                GlobalCooldownSeconds: editGlobalCooldownSeconds,
+                MaxPerStream: editMaxPerStream,
+                MaxPerUserPerStream: editMaxPerUserPerStream));
+
+            if (result.Success && result.Reward is not null)
+            {
+                editingId = null;
+                await OnUpdated.InvokeAsync(result.Reward);
+            }
+            else
+            {
+                errorMessage = result.Error ?? $"Couldn't update \"{reward.Title}\".";
+            }
+        }
+        finally
+        {
+            savingEdit = false;
+        }
+    }
+
+    private void RequestDelete(RewardItem reward)
+    {
+        editingId = null;
+        errorMessage = null;
+        confirmingDeleteId = reward.Id;
+    }
+
+    private void CancelDelete()
+    {
+        confirmingDeleteId = null;
+    }
+
+    private async Task ConfirmDelete(RewardItem reward)
+    {
+        if (!deletingIds.Add(reward.Id))
+        {
+            return;
+        }
+
+        errorMessage = null;
+        try
+        {
+            var result = await TwitchApiClient.DeleteReward(reward.Id);
+            if (result.Success)
+            {
+                confirmingDeleteId = null;
+                await OnDeleted.InvokeAsync(reward.Id);
+            }
+            else
+            {
+                errorMessage = result.Error ?? $"Couldn't delete \"{reward.Title}\".";
+            }
+        }
+        finally
+        {
+            deletingIds.Remove(reward.Id);
         }
     }
 }

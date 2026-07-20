@@ -34,6 +34,21 @@
             <input type="checkbox" @bind="skipRequestQueue" />
             <span>Auto-fulfill (skip request queue)</span>
         </label>
+
+        <label class="reward-create-field">
+            <span>Cooldown <span class="reward-create-optional">(seconds, 0 = off)</span></span>
+            <input class="reward-create-input" type="number" min="0" @bind="globalCooldownSeconds" @bind:event="oninput" />
+        </label>
+
+        <label class="reward-create-field">
+            <span>Max per stream <span class="reward-create-optional">(0 = off)</span></span>
+            <input class="reward-create-input" type="number" min="0" @bind="maxPerStream" @bind:event="oninput" />
+        </label>
+
+        <label class="reward-create-field">
+            <span>Max per user per stream <span class="reward-create-optional">(0 = off)</span></span>
+            <input class="reward-create-input" type="number" min="0" @bind="maxPerUserPerStream" @bind:event="oninput" />
+        </label>
     </div>
 
     <div class="reward-create-actions">
@@ -56,6 +71,9 @@
     private string backgroundColor = "#9146FF";
     private bool requiresUserInput;
     private bool skipRequestQueue;
+    private int globalCooldownSeconds;
+    private int maxPerStream;
+    private int maxPerUserPerStream;
     private bool creating;
     private bool succeeded;
     private string? feedback;
@@ -79,7 +97,10 @@
                 string.IsNullOrWhiteSpace(prompt) ? null : prompt.Trim(),
                 BackgroundColor: backgroundColor,
                 IsUserInputRequired: requiresUserInput,
-                ShouldRedemptionsSkipRequestQueue: skipRequestQueue));
+                ShouldRedemptionsSkipRequestQueue: skipRequestQueue,
+                GlobalCooldownSeconds: globalCooldownSeconds > 0 ? globalCooldownSeconds : null,
+                MaxPerStream: maxPerStream > 0 ? maxPerStream : null,
+                MaxPerUserPerStream: maxPerUserPerStream > 0 ? maxPerUserPerStream : null));
 
             succeeded = result.Success;
             feedback = result.Success ? $"Created \"{result.Reward!.Title}\"." : result.Error ?? "Couldn't create the reward.";
@@ -92,6 +113,9 @@
                 prompt = string.Empty;
                 requiresUserInput = false;
                 skipRequestQueue = false;
+                globalCooldownSeconds = 0;
+                maxPerStream = 0;
+                maxPerUserPerStream = 0;
             }
         }
         finally

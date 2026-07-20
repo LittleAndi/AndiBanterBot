@@ -75,7 +75,17 @@
     color: var(--color-muted);
 }
 
-.rewards-toggle {
+.rewards-actions {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2xs);
+}
+
+.rewards-toggle,
+.rewards-edit-btn,
+.rewards-delete,
+.rewards-edit-cancel {
     flex: none;
     background-color: transparent;
     color: var(--color-ink);
@@ -88,16 +98,122 @@
     transition: background-color var(--duration-fast) var(--ease-out-quart), border-color var(--duration-fast) var(--ease-out-quart);
 }
 
-.rewards-toggle:hover:not(:disabled) {
+.rewards-toggle:hover:not(:disabled),
+.rewards-edit-btn:hover:not(:disabled),
+.rewards-edit-cancel:hover:not(:disabled) {
     border-color: var(--color-primary);
 }
 
-.rewards-toggle:focus-visible {
+.rewards-delete:hover:not(:disabled) {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+.rewards-delete--confirm {
+    background-color: var(--color-accent);
+    color: var(--color-primary-ink);
+    border-color: var(--color-accent);
+}
+
+.rewards-toggle:focus-visible,
+.rewards-edit-btn:focus-visible,
+.rewards-delete:focus-visible,
+.rewards-edit-cancel:focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
 }
 
-.rewards-toggle:disabled {
+.rewards-toggle:disabled,
+.rewards-edit-btn:disabled,
+.rewards-delete:disabled,
+.rewards-edit-cancel:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.rewards-edit {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--space-sm);
+    width: 100%;
+    padding: var(--space-xs) 0;
+}
+
+.rewards-edit-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+    font-size: var(--text-xs);
+    color: var(--color-ink);
+}
+
+.rewards-edit-field--wide {
+    grid-column: 1 / -1;
+}
+
+.rewards-edit-input {
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: var(--space-2xs) var(--space-sm);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+}
+
+.rewards-edit-textarea {
+    resize: vertical;
+    min-height: 2.5rem;
+}
+
+.rewards-edit-input:focus-visible,
+.rewards-edit-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.rewards-edit-color {
+    width: 100%;
+    height: 2rem;
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: var(--space-2xs);
+    cursor: pointer;
+}
+
+.rewards-edit-checkbox {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--text-xs);
+    color: var(--color-ink);
+    cursor: pointer;
+}
+
+.rewards-edit-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.rewards-edit-save {
+    flex: none;
+    background-color: var(--color-primary);
+    color: var(--color-primary-ink);
+    border: none;
+    border-radius: 6px;
+    padding: var(--space-2xs) var(--space-md);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.rewards-edit-save:hover:not(:disabled) {
+    background-color: color-mix(in oklch, var(--color-primary) 85%, white);
+}
+
+.rewards-edit-save:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }

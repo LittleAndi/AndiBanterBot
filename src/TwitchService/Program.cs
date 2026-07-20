@@ -190,7 +190,10 @@ app.MapPost("rewards", async (
             request.IsEnabled,
             request.BackgroundColor,
             request.IsUserInputRequired,
-            request.ShouldRedemptionsSkipRequestQueue),
+            request.ShouldRedemptionsSkipRequestQueue,
+            request.GlobalCooldownSeconds,
+            request.MaxPerStream,
+            request.MaxPerUserPerStream),
         cancellationToken);
 
     return result.Success
@@ -214,7 +217,10 @@ app.MapPatch("rewards/{rewardId}", async (
             request.BackgroundColor,
             request.IsUserInputRequired,
             request.IsPaused,
-            request.ShouldRedemptionsSkipRequestQueue),
+            request.ShouldRedemptionsSkipRequestQueue,
+            request.GlobalCooldownSeconds,
+            request.MaxPerStream,
+            request.MaxPerUserPerStream),
         cancellationToken);
 
     return result.Success
@@ -235,10 +241,24 @@ app.MapPatch("rewards/{rewardId}/pause", async (
         : Results.Problem(result.Error ?? "Failed to update reward status", statusCode: StatusCodes.Status502BadGateway);
 });
 
+app.MapDelete("rewards/{rewardId}", async (
+    string rewardId,
+    ITwitchRewardService rewardService,
+    CancellationToken cancellationToken) =>
+{
+    var result = await rewardService.DeleteRewardAsync(rewardId, cancellationToken);
+
+    return result.Success
+        ? Results.NoContent()
+        : Results.Problem(result.Error ?? "Failed to delete reward", statusCode: StatusCodes.Status502BadGateway);
+});
+
 app.Run();
 
 static RewardResponse ToRewardResponse(CustomReward reward) =>
-    new(reward.Id, reward.Title, reward.Cost, reward.Prompt, reward.IsEnabled, reward.IsPaused, reward.BackgroundColor);
+    new(reward.Id, reward.Title, reward.Cost, reward.Prompt, reward.IsEnabled, reward.IsPaused, reward.BackgroundColor,
+        reward.IsUserInputRequired, reward.ShouldRedemptionsSkipRequestQueue,
+        reward.GlobalCooldownSeconds, reward.MaxPerStream, reward.MaxPerUserPerStream);
 
 public record AuthCallbackRequest(string Code, string Scopes, string RedirectUri);
 
@@ -279,7 +299,10 @@ public record CreateRewardHttpRequest(
     bool IsEnabled = true,
     string? BackgroundColor = null,
     bool IsUserInputRequired = false,
-    bool ShouldRedemptionsSkipRequestQueue = false);
+    bool ShouldRedemptionsSkipRequestQueue = false,
+    int? GlobalCooldownSeconds = null,
+    int? MaxPerStream = null,
+    int? MaxPerUserPerStream = null);
 
 public record UpdateRewardHttpRequest(
     string? Title = null,
@@ -289,8 +312,23 @@ public record UpdateRewardHttpRequest(
     string? BackgroundColor = null,
     bool? IsUserInputRequired = null,
     bool? IsPaused = null,
-    bool? ShouldRedemptionsSkipRequestQueue = null);
+    bool? ShouldRedemptionsSkipRequestQueue = null,
+    int? GlobalCooldownSeconds = null,
+    int? MaxPerStream = null,
+    int? MaxPerUserPerStream = null);
 
 public record SetRewardPausedRequest(bool IsPaused);
 
-public record RewardResponse(string Id, string Title, int Cost, string Prompt, bool IsEnabled, bool IsPaused, string BackgroundColor);
+public record RewardResponse(
+    string Id,
+    string Title,
+    int Cost,
+    string Prompt,
+    bool IsEnabled,
+    bool IsPaused,
+    string BackgroundColor,
+    bool IsUserInputRequired,
+    bool ShouldRedemptionsSkipRequestQueue,
+    int? GlobalCooldownSeconds,
+    int? MaxPerStream,
+    int? MaxPerUserPerStream);

@@ -190,6 +190,47 @@ public class TwitchApiClient(IHttpClientFactory httpClientFactory)
         }
     }
 
+    public async Task<UpdateRewardResult> UpdateReward(string rewardId, UpdateRewardRequest request)
+    {
+        try
+        {
+            var response = await httpClient.PatchAsJsonAsync($"rewards/{rewardId}", request);
+            if (response.IsSuccessStatusCode)
+            {
+                var reward = await response.Content.ReadFromJsonAsync<RewardItem>();
+                return reward is not null
+                    ? new UpdateRewardResult(true, reward, null)
+                    : new UpdateRewardResult(false, null, "Empty response from Twitch service");
+            }
+
+            var error = await response.Content.ReadAsStringAsync();
+            return new UpdateRewardResult(false, null, $"Twitch service returned {(int)response.StatusCode}: {error}");
+        }
+        catch (HttpRequestException ex)
+        {
+            return new UpdateRewardResult(false, null, $"Could not reach the Twitch service: {ex.Message}");
+        }
+    }
+
+    public async Task<DeleteRewardResult> DeleteReward(string rewardId)
+    {
+        try
+        {
+            var response = await httpClient.DeleteAsync($"rewards/{rewardId}");
+            if (response.IsSuccessStatusCode)
+            {
+                return new DeleteRewardResult(true, null);
+            }
+
+            var error = await response.Content.ReadAsStringAsync();
+            return new DeleteRewardResult(false, $"Twitch service returned {(int)response.StatusCode}: {error}");
+        }
+        catch (HttpRequestException ex)
+        {
+            return new DeleteRewardResult(false, $"Could not reach the Twitch service: {ex.Message}");
+        }
+    }
+
     public async Task<SendChatMessageResponse> SendChatMessage(string message)
     {
         try
@@ -241,7 +282,19 @@ public record ActivityFeedItem(string Kind, DateTimeOffset OccurredAt, string Di
 
 public record ModerationLogItem(string Kind, DateTimeOffset OccurredAt, string ModeratorName, string TargetName, string Summary);
 
-public record RewardItem(string Id, string Title, int Cost, string Prompt, bool IsEnabled, bool IsPaused, string BackgroundColor);
+public record RewardItem(
+    string Id,
+    string Title,
+    int Cost,
+    string Prompt,
+    bool IsEnabled,
+    bool IsPaused,
+    string BackgroundColor,
+    bool IsUserInputRequired,
+    bool ShouldRedemptionsSkipRequestQueue,
+    int? GlobalCooldownSeconds,
+    int? MaxPerStream,
+    int? MaxPerUserPerStream);
 
 public record CreateRewardRequest(
     string Title,
@@ -250,10 +303,29 @@ public record CreateRewardRequest(
     bool IsEnabled = true,
     string? BackgroundColor = null,
     bool IsUserInputRequired = false,
-    bool ShouldRedemptionsSkipRequestQueue = false);
+    bool ShouldRedemptionsSkipRequestQueue = false,
+    int? GlobalCooldownSeconds = null,
+    int? MaxPerStream = null,
+    int? MaxPerUserPerStream = null);
 
 public record CreateRewardResult(bool Success, RewardItem? Reward, string? Error);
 
 public record SetRewardPausedRequest(bool IsPaused);
 
 public record SetRewardPausedResult(bool Success, RewardItem? Reward, string? Error);
+
+public record UpdateRewardRequest(
+    string? Title = null,
+    int? Cost = null,
+    string? Prompt = null,
+    bool? IsEnabled = null,
+    string? BackgroundColor = null,
+    bool? IsUserInputRequired = null,
+    bool? ShouldRedemptionsSkipRequestQueue = null,
+    int? GlobalCooldownSeconds = null,
+    int? MaxPerStream = null,
+    int? MaxPerUserPerStream = null);
+
+public record UpdateRewardResult(bool Success, RewardItem? Reward, string? Error);
+
+public record DeleteRewardResult(bool Success, string? Error);
