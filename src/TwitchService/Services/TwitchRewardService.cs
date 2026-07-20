@@ -6,6 +6,7 @@ public interface ITwitchRewardService
     Task<RewardOperationResult> CreateRewardAsync(CreateRewardRequest request, CancellationToken cancellationToken = default);
     Task<RewardOperationResult> UpdateRewardAsync(string rewardId, UpdateRewardRequest request, CancellationToken cancellationToken = default);
     Task<RewardOperationResult> SetPausedAsync(string rewardId, bool isPaused, CancellationToken cancellationToken = default);
+    Task<RewardDeleteResult> DeleteRewardAsync(string rewardId, CancellationToken cancellationToken = default);
 }
 
 public record CreateRewardRequest(
@@ -15,7 +16,10 @@ public record CreateRewardRequest(
     bool IsEnabled = true,
     string? BackgroundColor = null,
     bool IsUserInputRequired = false,
-    bool ShouldRedemptionsSkipRequestQueue = false);
+    bool ShouldRedemptionsSkipRequestQueue = false,
+    int? GlobalCooldownSeconds = null,
+    int? MaxPerStream = null,
+    int? MaxPerUserPerStream = null);
 
 public record UpdateRewardRequest(
     string? Title = null,
@@ -25,7 +29,10 @@ public record UpdateRewardRequest(
     string? BackgroundColor = null,
     bool? IsUserInputRequired = null,
     bool? IsPaused = null,
-    bool? ShouldRedemptionsSkipRequestQueue = null);
+    bool? ShouldRedemptionsSkipRequestQueue = null,
+    int? GlobalCooldownSeconds = null,
+    int? MaxPerStream = null,
+    int? MaxPerUserPerStream = null);
 
 public record CustomReward(
     string Id,
@@ -34,11 +41,18 @@ public record CustomReward(
     string Prompt,
     bool IsEnabled,
     bool IsPaused,
-    string BackgroundColor);
+    string BackgroundColor,
+    bool IsUserInputRequired,
+    bool ShouldRedemptionsSkipRequestQueue,
+    int? GlobalCooldownSeconds,
+    int? MaxPerStream,
+    int? MaxPerUserPerStream);
 
 public record RewardOperationResult(bool Success, CustomReward? Reward, string? Error);
 
 public record RewardListResult(bool Success, IReadOnlyList<CustomReward> Rewards, string? Error);
+
+public record RewardDeleteResult(bool Success, string? Error);
 
 /// <summary>
 /// Creates, updates, and pauses/unpauses channel points custom rewards through the Helix
@@ -108,6 +122,21 @@ public class TwitchRewardService(
         {
             body["background_color"] = request.BackgroundColor;
         }
+        if (request.GlobalCooldownSeconds is > 0)
+        {
+            body["is_global_cooldown_enabled"] = true;
+            body["global_cooldown_seconds"] = request.GlobalCooldownSeconds.Value;
+        }
+        if (request.MaxPerStream is > 0)
+        {
+            body["is_max_per_stream_enabled"] = true;
+            body["max_per_stream"] = request.MaxPerStream.Value;
+        }
+        if (request.MaxPerUserPerStream is > 0)
+        {
+            body["is_max_per_user_per_stream_enabled"] = true;
+            body["max_per_user_per_stream"] = request.MaxPerUserPerStream.Value;
+        }
 
         var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"helix/channel_points/custom_rewards?broadcaster_id={broadcasterId}")
         {
@@ -144,6 +173,29 @@ public class TwitchRewardService(
     public Task<RewardOperationResult> SetPausedAsync(string rewardId, bool isPaused, CancellationToken cancellationToken = default) =>
         UpdateRewardAsync(rewardId, new UpdateRewardRequest(IsPaused: isPaused), cancellationToken);
 
+    public async Task<RewardDeleteResult> DeleteRewardAsync(string rewardId, CancellationToken cancellationToken = default)
+    {
+        var broadcasterId = await twitchUserApi.GetUserIdAsync(broadcasterUsername, cancellationToken);
+        if (broadcasterId is null)
+        {
+            return new RewardDeleteResult(false, $"Could not resolve broadcaster id for {broadcasterUsername}");
+        }
+
+        var httpRequest = new HttpRequestMessage(HttpMethod.Delete, $"helix/channel_points/custom_rewards?broadcaster_id={broadcasterId}&id={rewardId}");
+        httpRequest.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Broadcaster);
+
+        var response = await twitchHttpClientUserAccess.SendAsync(httpRequest, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            logger.LogInformation("Successfully deleted reward {RewardId}", rewardId);
+            return new RewardDeleteResult(true, null);
+        }
+
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        logger.LogError("Failed to delete custom reward {RewardId}. Status: {StatusCode}, Response: {Response}", rewardId, response.StatusCode, content);
+        return new RewardDeleteResult(false, $"Twitch returned {(int)response.StatusCode}: {content}");
+    }
+
     private static Dictionary<string, object> BuildUpdateBody(UpdateRewardRequest request)
     {
         var body = new Dictionary<string, object>();
@@ -155,6 +207,21 @@ public class TwitchRewardService(
         if (request.IsUserInputRequired is not null) body["is_user_input_required"] = request.IsUserInputRequired.Value;
         if (request.IsPaused is not null) body["is_paused"] = request.IsPaused.Value;
         if (request.ShouldRedemptionsSkipRequestQueue is not null) body["should_redemptions_skip_request_queue"] = request.ShouldRedemptionsSkipRequestQueue.Value;
+        if (request.GlobalCooldownSeconds is not null)
+        {
+            body["is_global_cooldown_enabled"] = request.GlobalCooldownSeconds.Value > 0;
+            if (request.GlobalCooldownSeconds.Value > 0) body["global_cooldown_seconds"] = request.GlobalCooldownSeconds.Value;
+        }
+        if (request.MaxPerStream is not null)
+        {
+            body["is_max_per_stream_enabled"] = request.MaxPerStream.Value > 0;
+            if (request.MaxPerStream.Value > 0) body["max_per_stream"] = request.MaxPerStream.Value;
+        }
+        if (request.MaxPerUserPerStream is not null)
+        {
+            body["is_max_per_user_per_stream_enabled"] = request.MaxPerUserPerStream.Value > 0;
+            if (request.MaxPerUserPerStream.Value > 0) body["max_per_user_per_stream"] = request.MaxPerUserPerStream.Value;
+        }
         return body;
     }
 
@@ -184,5 +251,25 @@ public class TwitchRewardService(
         data.TryGetProperty("prompt", out var prompt) ? prompt.GetString() ?? string.Empty : string.Empty,
         data.GetProperty("is_enabled").GetBoolean(),
         data.GetProperty("is_paused").GetBoolean(),
-        data.TryGetProperty("background_color", out var color) ? color.GetString() ?? string.Empty : string.Empty);
+        data.TryGetProperty("background_color", out var color) ? color.GetString() ?? string.Empty : string.Empty,
+        data.TryGetProperty("is_user_input_required", out var userInput) && userInput.GetBoolean(),
+        data.TryGetProperty("should_redemptions_skip_request_queue", out var skipQueue) && skipQueue.GetBoolean(),
+        ParseLimit(data, "is_global_cooldown_enabled", "global_cooldown_setting", "global_cooldown_seconds"),
+        ParseLimit(data, "is_max_per_stream_enabled", "max_per_stream_setting", "max_per_stream"),
+        ParseLimit(data, "is_max_per_user_per_stream_enabled", "max_per_user_per_stream_setting", "max_per_user_per_stream"));
+
+    // Twitch reports each limit as a top-level "is_X_enabled" flag plus a nested "X_setting"
+    // object carrying the actual value, e.g. is_global_cooldown_enabled + global_cooldown_setting.global_cooldown_seconds.
+    private static int? ParseLimit(JsonElement data, string isEnabledProperty, string settingProperty, string valueProperty)
+    {
+        var isEnabled = data.TryGetProperty(isEnabledProperty, out var enabledEl) && enabledEl.GetBoolean();
+        if (!isEnabled)
+        {
+            return null;
+        }
+
+        return data.TryGetProperty(settingProperty, out var setting) && setting.TryGetProperty(valueProperty, out var valueEl)
+            ? valueEl.GetInt32()
+            : null;
+    }
 }

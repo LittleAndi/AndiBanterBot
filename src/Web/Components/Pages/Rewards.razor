@@ -15,7 +15,7 @@
 
     <RewardCreateForm OnCreated="HandleRewardCreated" />
 
-    <RewardsPanel Items="rewards" Loading="loading" OnToggled="HandleRewardToggled" />
+    <RewardsPanel Items="rewards" Loading="loading" OnToggled="HandleRewardToggled" OnUpdated="HandleRewardUpdated" OnDeleted="HandleRewardDeleted" />
 </div>
 
 @code {
@@ -45,5 +45,25 @@
     private void HandleRewardCreated(RewardItem created)
     {
         rewards = rewards is null ? [created] : [.. rewards, created];
+    }
+
+    private void HandleRewardUpdated(RewardItem updated)
+    {
+        if (rewards is null)
+        {
+            return;
+        }
+
+        rewards = [.. rewards.Select(r => r.Id == updated.Id ? updated : r)];
+    }
+
+    private void HandleRewardDeleted(string rewardId)
+    {
+        if (rewards is null)
+        {
+            return;
+        }
+
+        rewards = [.. rewards.Where(r => r.Id != rewardId)];
     }
 }
