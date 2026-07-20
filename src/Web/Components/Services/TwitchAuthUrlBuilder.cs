@@ -38,6 +38,16 @@ public class TwitchAuthUrlBuilder(IConfiguration configuration)
         "channel:read:vips",
         "clips:edit",
         "moderator:read:followers",
+        // channel.moderate v2 EventSub requires all of these on the authorizing token,
+        // beyond the broader channel:moderate scope above.
+        "moderator:read:blocked_terms",
+        "moderator:read:chat_settings",
+        "moderator:read:unban_requests",
+        "moderator:read:banned_users",
+        "moderator:read:chat_messages",
+        "moderator:read:warnings",
+        "moderator:read:moderators",
+        "moderator:read:vips",
     ];
 
     public string BuildBotAuthorizeUrl(string baseUri) =>
