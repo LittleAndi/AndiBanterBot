@@ -37,6 +37,8 @@ public class TwitchAuthUrlBuilder(IConfiguration configuration)
         "channel:read:subscriptions",
         "channel:read:vips",
         "clips:edit",
+        "moderator:manage:announcements",
+        "moderator:manage:shoutouts",
         "moderator:read:followers",
     ];
 
