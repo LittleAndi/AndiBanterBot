@@ -1,0 +1,46 @@
+@using System.Globalization
+@using Web.Components.Services
+
+<div class="ad-break-tile">
+    <span class="ad-break-icon" aria-hidden="true">
+        <svg viewBox="0 0 16 16">
+            <rect x="1" y="2.5" width="14" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4" />
+            <path d="M6.5 5.5v5l4-2.5-4-2.5Z" fill="currentColor" />
+        </svg>
+    </span>
+    <div class="ad-break-body">
+        <div class="ad-break-header">
+            <span class="ad-break-label">Ad Break Running</span>
+            <span class="ad-break-detail mono">Ends ~@EndsAt.ToLocalTime().ToString("t")</span>
+        </div>
+        <div class="ad-break-track"
+             role="progressbar"
+             aria-valuenow="@Math.Round(RemainingSeconds)"
+             aria-valuemin="0"
+             aria-valuemax="@Status!.DurationSeconds"
+             aria-label="@($"Ad break: about {Math.Round(RemainingSeconds)} of {Status.DurationSeconds} seconds remaining")">
+            <div class="ad-break-fill" style="transform: scaleX(@(RemainingFraction.ToString(CultureInfo.InvariantCulture)))"></div>
+        </div>
+        <span class="ad-break-numbers mono">
+            @Status.DurationSeconds s break
+            @if (!Status.IsAutomatic && !string.IsNullOrEmpty(Status.RequesterUserName))
+            {
+                <text> &middot; started by @Status.RequesterUserName</text>
+            }
+        </span>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public AdBreakStatusResponse? Status { get; set; }
+
+    // Twitch never sends an end notification, so the tile derives "ends at" from
+    // started_at + duration_seconds - a fixed clock time that stays correct
+    // regardless of when it's read, unlike a ticking countdown that would drift
+    // stale between the dashboard's 15s polls.
+    private DateTimeOffset EndsAt => Status!.StartedAt!.Value.AddSeconds(Status.DurationSeconds);
+
+    private double RemainingSeconds => Math.Max(0, (EndsAt - DateTimeOffset.UtcNow).TotalSeconds);
+
+    private double RemainingFraction => Status!.DurationSeconds > 0 ? Math.Clamp(RemainingSeconds / Status.DurationSeconds, 0, 1) : 0;
+}
