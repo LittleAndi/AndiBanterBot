@@ -61,9 +61,9 @@ public class TwitchAdScheduleService(
         var schedule = new AdSchedule(
             ParseTimestamp(data, "next_ad_at"),
             ParseTimestamp(data, "last_ad_at"),
-            data.GetProperty("duration").GetInt32(),
-            data.GetProperty("preroll_free_time").GetInt32(),
-            data.GetProperty("snooze_count").GetInt32(),
+            ParseInt(data, "duration"),
+            ParseInt(data, "preroll_free_time"),
+            ParseInt(data, "snooze_count"),
             ParseTimestamp(data, "snooze_refresh_at"));
 
         return new AdScheduleResult(true, schedule, null);
@@ -93,7 +93,7 @@ public class TwitchAdScheduleService(
         var data = doc.RootElement.GetProperty("data")[0];
 
         var snooze = new AdSnooze(
-            data.GetProperty("snooze_count").GetInt32(),
+            ParseInt(data, "snooze_count"),
             ParseTimestamp(data, "snooze_refresh_at"),
             ParseTimestamp(data, "next_ad_at"));
 
@@ -101,11 +101,39 @@ public class TwitchAdScheduleService(
         return new SnoozeAdResult(true, snooze, null);
     }
 
-    // Twitch returns an empty string for timestamp fields that don't apply yet
-    // (e.g. next_ad_at with nothing scheduled, last_ad_at before any ad has run).
+    // Twitch's own docs example for this endpoint shows "duration"/"snooze_count" as JSON
+    // strings while the live API has been observed returning ad-schedule timestamps as Unix
+    // epoch numbers instead of the documented RFC3339 strings - the documented type doesn't
+    // reliably match what's on the wire, so both fields below tolerate either JSON shape.
+    // An empty string or a non-positive epoch means the field doesn't apply yet (e.g.
+    // next_ad_at with nothing scheduled, last_ad_at before any ad has run).
     private static DateTimeOffset? ParseTimestamp(JsonElement data, string propertyName)
     {
-        var value = data.TryGetProperty(propertyName, out var el) ? el.GetString() : null;
-        return string.IsNullOrEmpty(value) ? null : DateTimeOffset.Parse(value);
+        if (!data.TryGetProperty(propertyName, out var el))
+        {
+            return null;
+        }
+
+        return el.ValueKind switch
+        {
+            JsonValueKind.String => string.IsNullOrEmpty(el.GetString()) ? null : DateTimeOffset.Parse(el.GetString()!),
+            JsonValueKind.Number => el.GetInt64() is var seconds && seconds > 0 ? DateTimeOffset.FromUnixTimeSeconds(seconds) : null,
+            _ => null,
+        };
+    }
+
+    private static int ParseInt(JsonElement data, string propertyName)
+    {
+        if (!data.TryGetProperty(propertyName, out var el))
+        {
+            return 0;
+        }
+
+        return el.ValueKind switch
+        {
+            JsonValueKind.Number => el.GetInt32(),
+            JsonValueKind.String => int.TryParse(el.GetString(), out var parsed) ? parsed : 0,
+            _ => 0,
+        };
     }
 }
