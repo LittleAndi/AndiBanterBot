@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddSingleton<ITwitchAdScheduleService, TwitchAdScheduleService>();
         services.AddSingleton<ITwitchShoutoutService, TwitchShoutoutService>();
         services.AddSingleton<ITwitchAnnouncementService, TwitchAnnouncementService>();
+        services.AddSingleton<ITwitchClipService, TwitchClipService>();
         // Two independent WebSocket connections, one per Twitch user identity - see the
         // comment on TwitchWebSocketService for why they can't share a single connection.
         services.AddKeyedSingleton<IWebSocketClient, WebSocketClient>(TwitchUserRole.Bot);
@@ -38,6 +39,7 @@ public static class DependencyInjection
         services.AddSingleton<ITwitchWebSocketService, TwitchWebSocketService>();
         services.AddHostedService<TwitchEventSubSupervisorService>();
         services.AddHostedService<TwitchActivityChatReactionService>();
+        services.AddHostedService<TwitchClipTriggerService>();
 
         services.AddSingleton<TwitchActivityFeedService>();
         services.AddSingleton<ITwitchActivityFeedService>(sp => sp.GetRequiredService<TwitchActivityFeedService>());
