@@ -46,12 +46,13 @@
         <ModerationLogPanel Items="moderationLog" Loading="loading" />
     </div>
 
+    <ClipsPanel Items="clips" Loading="loading" />
+
     <section class="coming-soon">
         <h2 class="coming-soon-title">More on the way</h2>
         <ul class="coming-soon-list">
             <li>Live chat activity — will show up here once the bot streams it through</li>
             <li>PUBG match stats — the data's already flowing, just not to this screen yet</li>
-            <li>Clip history</li>
         </ul>
     </section>
 </div>
@@ -66,6 +67,7 @@
     private AdBreakStatusResponse? adBreakStatus;
     private ActivityFeedItem[]? activity;
     private ModerationLogItem[]? moderationLog;
+    private ClipItem[]? clips;
     private bool loading = true;
     private bool refreshing;
     private string botUrl = string.Empty;
@@ -99,7 +101,8 @@
         var adBreakStatusTask = TwitchApiClient.GetAdBreakStatus();
         var activityTask = TwitchApiClient.GetRecentActivity();
         var moderationLogTask = TwitchApiClient.GetRecentModerationLog();
-        await Task.WhenAll(statusTask, streamStatusTask, hypeTrainStatusTask, goalStatusTask, pollStatusTask, predictionStatusTask, adBreakStatusTask, activityTask, moderationLogTask);
+        var clipsTask = TwitchApiClient.GetRecentClips();
+        await Task.WhenAll(statusTask, streamStatusTask, hypeTrainStatusTask, goalStatusTask, pollStatusTask, predictionStatusTask, adBreakStatusTask, activityTask, moderationLogTask, clipsTask);
 
         status = statusTask.Result;
         streamStatus = streamStatusTask.Result;
@@ -110,6 +113,7 @@
         adBreakStatus = adBreakStatusTask.Result;
         activity = activityTask.Result;
         moderationLog = moderationLogTask.Result;
+        clips = clipsTask.Result;
         loading = false;
     }
 

@@ -130,6 +130,14 @@ app.MapGet("activity/recent", (ITwitchActivityFeedService activityFeedService) =
     return Results.Ok(items);
 });
 
+app.MapGet("clips/recent", async (ITwitchClipService clipService, CancellationToken ct) =>
+{
+    var result = await clipService.GetRecentClipsAsync(cancellationToken: ct);
+    return result.Success
+        ? Results.Ok(result.Clips.Select(ToClipItem).ToArray())
+        : Results.Problem(result.Error ?? "Failed to list clips", statusCode: StatusCodes.Status502BadGateway);
+});
+
 app.MapGet("moderation/recent", (ITwitchModerationLogService moderationLogService) =>
 {
     var items = moderationLogService.GetRecent()
@@ -339,6 +347,9 @@ static RewardResponse ToRewardResponse(CustomReward reward) =>
         reward.IsUserInputRequired, reward.ShouldRedemptionsSkipRequestQueue,
         reward.GlobalCooldownSeconds, reward.MaxPerStream, reward.MaxPerUserPerStream);
 
+static ClipItem ToClipItem(Clip clip) =>
+    new(clip.Id, clip.Url, clip.Title, clip.CreatorName, clip.ViewCount, clip.CreatedAt, clip.ThumbnailUrl, clip.DurationSeconds);
+
 public record AuthCallbackRequest(string Code, string Scopes, string RedirectUri);
 
 public record SendChatMessageRequest(string Message, string? ReplyParentMessageId = null);
@@ -376,6 +387,8 @@ public record PredictionOutcomeResponse(string Title, string Color, int Users, i
 public record PredictionStatusResponse(bool IsActive, string Title, bool Locked, PredictionOutcomeResponse[] Outcomes);
 
 public record AdBreakStatusResponse(bool IsActive, DateTimeOffset? StartedAt, int DurationSeconds, bool IsAutomatic, string RequesterUserName);
+
+public record ClipItem(string Id, string Url, string Title, string CreatorName, int ViewCount, DateTimeOffset CreatedAt, string ThumbnailUrl, int DurationSeconds);
 
 public record AdScheduleResponse(DateTimeOffset? NextAdAt, DateTimeOffset? LastAdAt, int DurationSeconds, int PrerollFreeTimeSeconds, int SnoozeCount, DateTimeOffset? SnoozeRefreshAt);
 

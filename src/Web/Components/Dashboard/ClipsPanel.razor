@@ -1,0 +1,52 @@
+@using Web.Components.Services
+
+<div class="clips-panel">
+    <h2 class="clips-title">Recent clips</h2>
+
+    @if (Loading)
+    {
+        <ul class="clips-list" aria-hidden="true">
+            <li class="clip-item clip-item--skeleton"></li>
+            <li class="clip-item clip-item--skeleton"></li>
+            <li class="clip-item clip-item--skeleton"></li>
+        </ul>
+    }
+    else if (Items is null)
+    {
+        <p class="clips-empty">Can't reach the clip library right now.</p>
+    }
+    else if (Items.Count == 0)
+    {
+        <p class="clips-empty">No clips yet — big cheers and hype train finishes will auto-capture highlights here.</p>
+    }
+    else
+    {
+        <ul class="clips-list">
+            @foreach (var clip in Items)
+            {
+                <li class="clip-item" @key="clip.Id">
+                    <a class="clip-link" href="@clip.Url" target="_blank" rel="noopener noreferrer" title="@clip.Title">
+                        <span class="clip-thumb-wrap">
+                            <img class="clip-thumb" src="@clip.ThumbnailUrl" alt="" loading="lazy" />
+                            <span class="clip-duration mono">@FormatDuration(clip.DurationSeconds)</span>
+                        </span>
+                        <span class="clip-text">
+                            <span class="clip-caption">@clip.Title</span>
+                            <span class="clip-meta">
+                                <span>@clip.CreatorName</span>
+                                <time class="mono" datetime="@clip.CreatedAt.ToString("O")">@clip.CreatedAt.ToLocalTime().ToString("MMM d, t")</time>
+                            </span>
+                        </span>
+                    </a>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<ClipItem>? Items { get; set; }
+    [Parameter] public bool Loading { get; set; }
+
+    private static string FormatDuration(int seconds) => $"{seconds}s";
+}

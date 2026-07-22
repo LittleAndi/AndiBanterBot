@@ -148,6 +148,21 @@ public class TwitchApiClient(IHttpClientFactory httpClientFactory)
 
     // Same reasoning as GetAuthStatus: fail fast toward "unreachable" instead of
     // waiting out the standard resilience handler's retry budget.
+    public async Task<ClipItem[]?> GetRecentClips()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            return await httpClient.GetFromJsonAsync<ClipItem[]>("clips/recent", cts.Token);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    // Same reasoning as GetAuthStatus: fail fast toward "unreachable" instead of
+    // waiting out the standard resilience handler's retry budget.
     public async Task<RewardItem[]?> GetRewards()
     {
         try
@@ -298,6 +313,8 @@ public record AdBreakStatusResponse(bool IsActive, DateTimeOffset? StartedAt, in
 public record ActivityFeedItem(string Kind, DateTimeOffset OccurredAt, string DisplayName, string Summary);
 
 public record ModerationLogItem(string Kind, DateTimeOffset OccurredAt, string ModeratorName, string TargetName, string Summary);
+
+public record ClipItem(string Id, string Url, string Title, string CreatorName, int ViewCount, DateTimeOffset CreatedAt, string ThumbnailUrl, int DurationSeconds);
 
 public record RewardItem(
     string Id,
