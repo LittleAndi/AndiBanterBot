@@ -13,8 +13,13 @@ builder.Services.AddHttpClient("twitch", (ServiceProvider, client) =>
 {
     client.BaseAddress = new("https+http://twitch");
 });
+builder.Services.AddHttpClient("overlays", (ServiceProvider, client) =>
+{
+    client.BaseAddress = new("https+http://overlays");
+});
 builder.Services.AddTransient<TwitchApiClient>();
 builder.Services.AddTransient<TwitchAuthUrlBuilder>();
+builder.Services.AddTransient<OverlayApiClient>();
 
 
 var app = builder.Build();

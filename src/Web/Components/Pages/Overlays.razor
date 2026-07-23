@@ -1,0 +1,93 @@
+@page "/overlays"
+@using Web.Components.Services
+@inject OverlayApiClient OverlayApiClient
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Overlays</PageTitle>
+
+<div class="overlays-page">
+    <h1 class="overlays-title">Overlays</h1>
+    <p class="overlays-subtitle">
+        Browser sources for your OBS scenes. Grab an overlay's URL, add a Browser source in OBS, and paste it in —
+        that's the whole ritual.
+    </p>
+
+    @if (loading)
+    {
+        <ul class="overlay-list" aria-hidden="true">
+            <li class="overlay-card overlay-card--skeleton"></li>
+            <li class="overlay-card overlay-card--skeleton"></li>
+        </ul>
+    }
+    else if (overlays is null)
+    {
+        <p class="overlays-note overlays-note--down">
+            <span class="overlays-note-icon" aria-hidden="true">🔌</span>
+            Can't reach the overlay service right now. It might still be waking up — try again in a moment.
+        </p>
+    }
+    else if (overlays.Length == 0)
+    {
+        <p class="overlays-note">
+            <span class="overlays-note-icon" aria-hidden="true">🎬</span>
+            No overlays wired up yet. As each one gets built it'll show up here, ready to drop straight into OBS.
+        </p>
+    }
+    else
+    {
+        <ul class="overlay-list">
+            @foreach (var overlay in overlays)
+            {
+                var url = OverlayApiClient.BuildBrowserSourceUrl(overlay.Slug);
+                var copied = copiedSlug == overlay.Slug;
+                <li class="overlay-card" @key="overlay.Slug">
+                    <div class="overlay-head">
+                        <span class="overlay-name">@overlay.DisplayName</span>
+                        <span class="overlay-dims mono" title="Recommended OBS browser-source size">@overlay.DefaultWidth×@overlay.DefaultHeight</span>
+                    </div>
+                    <p class="overlay-desc">@overlay.Description</p>
+                    <div class="overlay-url-row">
+                        <code class="overlay-url mono">@url</code>
+                        <button type="button"
+                                class="overlay-copy @(copied ? "overlay-copy--done" : "")"
+                                @onclick="() => CopyUrl(overlay.Slug, url)">
+                            <span class="overlay-copy-icon" aria-hidden="true">@(copied ? "✓" : "⧉")</span>
+                            @(copied ? "Copied" : "Copy URL")
+                        </button>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private OverlayModuleItem[]? overlays;
+    private bool loading = true;
+    private string? copiedSlug;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            overlays = await OverlayApiClient.GetOverlays();
+            loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CopyUrl(string slug, string url)
+    {
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", url);
+        copiedSlug = slug;
+        StateHasChanged();
+
+        await Task.Delay(1500);
+        if (copiedSlug == slug)
+        {
+            copiedSlug = null;
+            StateHasChanged();
+        }
+    }
+}

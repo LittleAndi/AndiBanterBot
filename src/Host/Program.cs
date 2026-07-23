@@ -14,12 +14,14 @@ var twitch = builder.AddProject<Projects.TwitchService>("twitch")
     .WithEnvironment("ASPNETCORE_ENVIRONMENT", environment)
     .WithEnvironment("DOTNET_ENVIRONMENT", environment);
 
-builder.AddProject<Projects.OverlayService>("overlays")
+var overlays = builder.AddProject<Projects.OverlayService>("overlays")
     .WithEnvironment("ASPNETCORE_ENVIRONMENT", environment)
-    .WithEnvironment("DOTNET_ENVIRONMENT", environment);
+    .WithEnvironment("DOTNET_ENVIRONMENT", environment)
+    .WithExternalHttpEndpoints();
 
 builder.AddProject<Projects.Web>("web")
     .WithReference(twitch)
+    .WithReference(overlays)
     .WithExternalHttpEndpoints();
 
 builder.Build().Run();
