@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>PUBG Match Stats Overlay</title>
+    <link rel="stylesheet" href="/overlays/_shared/overlay-reset.css" />
+    <link rel="stylesheet" href="/overlays/pubg-stats/style.css" />
+</head>
+
+<body>
+    <div id="card" class="card">
+        <div class="map" id="map">—</div>
+        <div class="stats">
+            <div class="stat">
+                <span class="value" id="placement">–</span>
+                <span class="label">Placement</span>
+            </div>
+            <div class="stat">
+                <span class="value" id="kills">–</span>
+                <span class="label">Kills</span>
+            </div>
+            <div class="stat">
+                <span class="value" id="damage">–</span>
+                <span class="label">Damage</span>
+            </div>
+            <div class="stat">
+                <span class="value" id="headshots">–</span>
+                <span class="label">Headshots</span>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="/overlays/pubg-stats/app.js"></script>
+</body>
+
+</html>
