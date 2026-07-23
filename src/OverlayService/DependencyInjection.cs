@@ -8,6 +8,8 @@ public static class DependencyInjection
     {
         services.AddSingleton<IOverlayRegistry, OverlayRegistry>();
 
+        services.AddHttpClient("pubg", client => client.BaseAddress = new("https+http://pubg"));
+
         return services;
     }
 }
