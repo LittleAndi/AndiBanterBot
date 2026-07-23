@@ -1,0 +1,86 @@
+/* Stream-ending overlay. Meant to fill the OBS scene on its own (the streamer
+   cuts to this as its own scene, not a corner widget composited over
+   gameplay), so unlike a typical transparent overlay it paints its own
+   on-brand background rather than staying see-through. Palette mirrors the
+   Web dashboard's tokens (src/Web/wwwroot/app.css) so the overlay reads as
+   the same product, not a bolted-on extra. */
+
+:root {
+    --oklch-bg: oklch(0.16 0.012 150);
+    --oklch-surface-raised: oklch(0.27 0.015 150);
+    --oklch-border: oklch(0.32 0.016 150);
+    --oklch-ink: oklch(0.94 0.006 150);
+    --oklch-muted: oklch(0.63 0.010 150);
+    --oklch-primary: oklch(0.88 0.16 112);
+    --oklch-accent: oklch(0.68 0.24 350);
+}
+
+body {
+    background: radial-gradient(circle at 50% 38%, var(--oklch-surface-raised), var(--oklch-bg) 70%);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+.screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    max-width: 70vw;
+    text-align: center;
+    animation: settle-in 900ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+.eyebrow {
+    margin: 0;
+    color: var(--oklch-accent);
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.title {
+    margin: 0;
+    color: var(--oklch-ink);
+    font-size: 4.5rem;
+    font-weight: 800;
+    line-height: 1.05;
+}
+
+.message {
+    margin: 0;
+    color: var(--oklch-muted);
+    font-size: 1.6rem;
+    font-weight: 500;
+    max-width: 42ch;
+}
+
+.next-stream {
+    margin: 1rem 0 0;
+    padding: 0.5rem 1.25rem;
+    border: 1px solid var(--oklch-border);
+    border-radius: 999px;
+    color: var(--oklch-primary);
+    font-size: 1.15rem;
+    font-weight: 600;
+}
+
+@keyframes settle-in {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
