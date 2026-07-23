@@ -154,6 +154,14 @@ app.MapGet("clips/recent", async (ITwitchClipService clipService, CancellationTo
         : Results.Problem(result.Error ?? "Failed to list clips", statusCode: StatusCodes.Status502BadGateway);
 });
 
+app.MapGet("clips/auto-created/recent", (ITwitchAutoClipFeedService autoClipFeedService) =>
+{
+    var items = autoClipFeedService.GetRecent()
+        .Select(e => new AutoClipItem(e.ClipId, e.OccurredAt, e.HighlightDescription))
+        .ToArray();
+    return Results.Ok(items);
+});
+
 app.MapGet("moderation/recent", (ITwitchModerationLogService moderationLogService) =>
 {
     var items = moderationLogService.GetRecent()
@@ -412,6 +420,8 @@ public record PredictionStatusResponse(bool IsActive, string Title, bool Locked,
 public record AdBreakStatusResponse(bool IsActive, DateTimeOffset? StartedAt, int DurationSeconds, bool IsAutomatic, string RequesterUserName);
 
 public record ClipItem(string Id, string Url, string Title, string CreatorName, int ViewCount, DateTimeOffset CreatedAt, string ThumbnailUrl, int DurationSeconds);
+
+public record AutoClipItem(string ClipId, DateTimeOffset OccurredAt, string HighlightDescription);
 
 public record AdScheduleResponse(DateTimeOffset? NextAdAt, DateTimeOffset? LastAdAt, int DurationSeconds, int PrerollFreeTimeSeconds, int SnoozeCount, DateTimeOffset? SnoozeRefreshAt);
 
