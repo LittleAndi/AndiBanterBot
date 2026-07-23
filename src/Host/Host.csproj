@@ -10,5 +10,6 @@
     <ProjectReference Include="..\Web\Web.csproj" />
     <ProjectReference Include="..\PubgService\PubgService.csproj" />
     <ProjectReference Include="..\TwitchService\TwitchService.csproj" />
+    <ProjectReference Include="..\OverlayService\OverlayService.csproj" />
   </ItemGroup>
 </Project>
