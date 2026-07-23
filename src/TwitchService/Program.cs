@@ -138,6 +138,14 @@ app.MapGet("chat/recent", (ITwitchChatFeedService chatFeedService) =>
     return Results.Ok(items);
 });
 
+app.MapGet("chat/commands/recent", (ITwitchChatCommandFeedService chatCommandFeedService) =>
+{
+    var items = chatCommandFeedService.GetRecent()
+        .Select(c => new ChatCommandItem(c.MessageId, c.OccurredAt, c.ChatterUserId, c.ChatterUserLogin, c.ChatterUserName, c.Name, c.Args, c.RawText))
+        .ToArray();
+    return Results.Ok(items);
+});
+
 app.MapGet("clips/recent", async (ITwitchClipService clipService, CancellationToken ct) =>
 {
     var result = await clipService.GetRecentClipsAsync(cancellationToken: ct);
@@ -416,6 +424,16 @@ public record ChatFeedEmoteItem(string Id, string EmoteSetId, string OwnerId, IR
 public record ChatFeedFragmentItem(string Type, string Text, ChatFeedEmoteItem? Emote);
 
 public record ChatFeedBadgeItem(string SetId, string Id, string Info);
+
+public record ChatCommandItem(
+    string MessageId,
+    DateTimeOffset OccurredAt,
+    string ChatterUserId,
+    string ChatterUserLogin,
+    string ChatterUserName,
+    string Name,
+    IReadOnlyList<string> Args,
+    string RawText);
 
 public record ChatFeedItem(
     string MessageId,
