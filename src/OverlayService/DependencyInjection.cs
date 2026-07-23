@@ -8,6 +8,11 @@ public static class DependencyInjection
     {
         services.AddSingleton<IOverlayRegistry, OverlayRegistry>();
 
+        services.AddHttpClient("twitch", client =>
+        {
+            client.BaseAddress = new("https+http://twitch");
+        });
+
         return services;
     }
 }
