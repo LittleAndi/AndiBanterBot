@@ -130,6 +130,14 @@ app.MapGet("activity/recent", (ITwitchActivityFeedService activityFeedService) =
     return Results.Ok(items);
 });
 
+app.MapGet("chat/recent", (ITwitchChatFeedService chatFeedService) =>
+{
+    var items = chatFeedService.GetRecent()
+        .Select(ToChatFeedItem)
+        .ToArray();
+    return Results.Ok(items);
+});
+
 app.MapGet("clips/recent", async (ITwitchClipService clipService, CancellationToken ct) =>
 {
     var result = await clipService.GetRecentClipsAsync(cancellationToken: ct);
@@ -347,6 +355,13 @@ static RewardResponse ToRewardResponse(CustomReward reward) =>
         reward.IsUserInputRequired, reward.ShouldRedemptionsSkipRequestQueue,
         reward.GlobalCooldownSeconds, reward.MaxPerStream, reward.MaxPerUserPerStream);
 
+static ChatFeedItem ToChatFeedItem(ChatFeedMessage message) =>
+    new(message.MessageId, message.OccurredAt, message.ChatterUserId, message.ChatterUserLogin, message.ChatterUserName,
+        message.Text, message.Fragments.Select(f => new ChatFeedFragmentItem(f.Type, f.Text,
+            f.Emote is null ? null : new ChatFeedEmoteItem(f.Emote.Id, f.Emote.EmoteSetId, f.Emote.OwnerId, f.Emote.Format))).ToArray(),
+        message.Color, message.Badges.Select(b => new ChatFeedBadgeItem(b.SetId, b.Id, b.Info)).ToArray(),
+        message.ReplyParentMessageId, message.IsDeleted);
+
 static ClipItem ToClipItem(Clip clip) =>
     new(clip.Id, clip.Url, clip.Title, clip.CreatorName, clip.ViewCount, clip.CreatedAt, clip.ThumbnailUrl, clip.DurationSeconds);
 
@@ -395,6 +410,25 @@ public record AdScheduleResponse(DateTimeOffset? NextAdAt, DateTimeOffset? LastA
 public record AdSnoozeResponse(int SnoozeCount, DateTimeOffset? SnoozeRefreshAt, DateTimeOffset? NextAdAt);
 
 public record ActivityFeedItem(string Kind, DateTimeOffset OccurredAt, string DisplayName, string Summary);
+
+public record ChatFeedEmoteItem(string Id, string EmoteSetId, string OwnerId, IReadOnlyList<string> Format);
+
+public record ChatFeedFragmentItem(string Type, string Text, ChatFeedEmoteItem? Emote);
+
+public record ChatFeedBadgeItem(string SetId, string Id, string Info);
+
+public record ChatFeedItem(
+    string MessageId,
+    DateTimeOffset OccurredAt,
+    string ChatterUserId,
+    string ChatterUserLogin,
+    string ChatterUserName,
+    string Text,
+    IReadOnlyList<ChatFeedFragmentItem> Fragments,
+    string? Color,
+    IReadOnlyList<ChatFeedBadgeItem> Badges,
+    string? ReplyParentMessageId,
+    bool IsDeleted);
 
 public record ModerationLogItem(string Kind, DateTimeOffset OccurredAt, string ModeratorName, string TargetName, string Summary);
 
