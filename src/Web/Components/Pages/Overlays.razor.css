@@ -1,0 +1,188 @@
+.overlays-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+    max-width: 48rem;
+    padding-bottom: var(--space-2xl);
+}
+
+.overlays-title {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--color-ink);
+    margin: 0;
+}
+
+.overlays-subtitle {
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+    margin: calc(var(--space-sm) * -1) 0 0;
+}
+
+/* Empty / unreachable states carry an icon as well as text so meaning never
+   rests on wording (or colour) alone. */
+.overlays-note {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+    background-color: var(--color-surface);
+    border: 1px dashed var(--color-border);
+    border-radius: 10px;
+    padding: var(--space-lg);
+    margin: 0;
+}
+
+.overlays-note--down {
+    border-style: solid;
+    border-color: var(--color-accent-border);
+    background-color: var(--color-accent-wash);
+    color: var(--color-ink);
+}
+
+.overlays-note-icon {
+    flex: none;
+    font-size: var(--text-lg);
+    line-height: 1;
+}
+
+.overlay-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.overlay-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: var(--space-lg);
+    animation: overlay-enter var(--duration-slow) var(--ease-out-quart);
+}
+
+.overlay-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-sm);
+}
+
+.overlay-name {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--color-ink);
+}
+
+.overlay-dims {
+    flex: none;
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+    background-color: var(--color-surface-raised);
+    border-radius: 6px;
+    padding: 0.125rem var(--space-xs);
+}
+
+.overlay-desc {
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+    margin: 0;
+}
+
+.overlay-url-row {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-xs);
+    flex-wrap: wrap;
+}
+
+.overlay-url {
+    flex: 1;
+    min-width: 12rem;
+    display: flex;
+    align-items: center;
+    font-size: var(--text-xs);
+    color: var(--color-ink);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: var(--space-xs) var(--space-sm);
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+.overlay-copy {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2xs);
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-primary-ink);
+    background-color: var(--color-primary);
+    border: 1px solid var(--color-primary);
+    border-radius: 8px;
+    padding: var(--space-xs) var(--space-md);
+    cursor: pointer;
+    transition: background-color var(--duration-fast) var(--ease-out-quart),
+                border-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.overlay-copy:hover {
+    background-color: var(--color-primary-dim);
+}
+
+.overlay-copy--done {
+    color: var(--color-ink);
+    background-color: var(--color-primary-wash);
+    border-color: var(--color-primary-border);
+}
+
+.overlay-copy-icon {
+    font-size: var(--text-sm);
+    line-height: 1;
+}
+
+.mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+.overlay-card--skeleton {
+    height: 8.5rem;
+    background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-border) 50%, var(--color-surface) 75%);
+    background-size: 200% 100%;
+    animation: overlay-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes overlay-enter {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes overlay-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .overlay-card {
+        animation: none;
+    }
+
+    .overlay-card--skeleton {
+        animation: none;
+        background: var(--color-surface);
+    }
+
+    .overlay-copy {
+        transition: none;
+    }
+}
