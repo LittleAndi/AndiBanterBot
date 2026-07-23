@@ -12,6 +12,7 @@ public class TwitchClipTriggerService(
     ITwitchWebSocketService twitchWebSocketService,
     ITwitchClipService twitchClipService,
     ITwitchChatService twitchChatService,
+    ITwitchAutoClipFeedService autoClipFeedService,
     IConfiguration configuration,
     ILogger<TwitchClipTriggerService> logger) : IHostedService
 {
@@ -52,6 +53,7 @@ public class TwitchClipTriggerService(
             }
 
             logger.LogInformation("Auto-created clip {ClipId} for {Highlight}", result.ClipId, highlightDescription);
+            autoClipFeedService.Add(result.ClipId!, highlightDescription);
             await AnnounceAsync(highlightDescription);
         }
         catch (Exception ex)

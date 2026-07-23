@@ -57,6 +57,8 @@ public static class DependencyInjection
         services.AddSingleton<ITwitchChatCommandFeedService>(sp => sp.GetRequiredService<TwitchChatCommandFeedService>());
         services.AddHostedService(sp => sp.GetRequiredService<TwitchChatCommandFeedService>());
 
+        services.AddSingleton<ITwitchAutoClipFeedService, TwitchAutoClipFeedService>();
+
         return services;
     }
 }
