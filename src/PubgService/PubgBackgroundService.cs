@@ -2,16 +2,23 @@ using Microsoft.Extensions.Hosting;
 
 namespace Application.Features;
 
-public class PubgBackgroundService(IPubgApiClient pubgApiClient, IPubgStorageClient pubgStorageClient, ILogger<PubgBackgroundService> logger) : BackgroundService
+public class PubgBackgroundService(
+    IPubgApiClient pubgApiClient,
+    IPubgStorageClient pubgStorageClient,
+    IPubgMatchFeedService pubgMatchFeedService,
+    ILogger<PubgBackgroundService> logger) : BackgroundService
 {
+    private const string PlayerName = "LittleAndi";
+
     private readonly IPubgApiClient pubgApiClient = pubgApiClient;
     private readonly IPubgStorageClient pubgStorageClient = pubgStorageClient;
+    private readonly IPubgMatchFeedService pubgMatchFeedService = pubgMatchFeedService;
     private readonly ILogger<PubgBackgroundService> logger = logger;
     private HashSet<string> MatchIds = [];
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var playerId = await pubgApiClient.FindPlayerId("LittleAndi", stoppingToken);
+        var playerId = await pubgApiClient.FindPlayerId(PlayerName, stoppingToken);
         if (string.IsNullOrWhiteSpace(playerId)) return;
 
         logger.LogDebug("PlayerId: {PlayerId}", playerId);
@@ -28,6 +35,7 @@ public class PubgBackgroundService(IPubgApiClient pubgApiClient, IPubgStorageCli
         {
             var match = await pubgApiClient.GetMatch(matchData.Id, stoppingToken);
             await pubgStorageClient.SaveMatch(matchData.Id, match, stoppingToken);
+            pubgMatchFeedService.Add(matchData.Id, match, PlayerName);
         }
 
         using PeriodicTimer timer = new(TimeSpan.FromSeconds(10));
@@ -47,6 +55,7 @@ public class PubgBackgroundService(IPubgApiClient pubgApiClient, IPubgStorageCli
 
                     var match = await pubgApiClient.GetMatch(matchData.Id, stoppingToken);
                     await pubgStorageClient.SaveMatch(matchData.Id, match, stoppingToken);
+                    pubgMatchFeedService.Add(matchData.Id, match, PlayerName);
                     // var response = await pubgAiClient.GetPubgCompletion(@"", match, "LittleAndi");
                     // await chatService.SendMessage(options.Channel, response, stoppingToken);
 

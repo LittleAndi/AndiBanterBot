@@ -24,6 +24,7 @@ public static class DependencyInjection
         });
         services.AddSingleton<IPubgStorageClient, PubgStorageClient>();
         services.AddTransient<IPubgApiClient, PubgApiClient>();
+        services.AddSingleton<IPubgMatchFeedService, PubgMatchFeedService>();
         return services;
     }
 
