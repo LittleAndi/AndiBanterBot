@@ -60,6 +60,7 @@ app.MapGet("/overlay/{slug}", (string slug, IOverlayRegistry registry, IWebHostE
 app.MapStartingOverlay();
 app.MapEndingOverlay();
 app.MapChatOverlay();
+app.MapEmotesOverlay();
 
 app.Run();
 

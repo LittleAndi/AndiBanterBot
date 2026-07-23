@@ -1,0 +1,40 @@
+/* Emote rain overlay: emotes drift from one edge of the browser-source viewport
+   to the opposite edge, fading in/out at the ends. Direction and lane are set
+   per-element by app.js via CSS custom properties, so a single keyframe covers
+   all four directions. */
+
+#stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.emote {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translate(var(--start-x), var(--start-y));
+    animation: emote-drift var(--duration) linear forwards;
+    filter: drop-shadow(0 2px 4px rgb(0 0 0 / 0.35));
+}
+
+@keyframes emote-drift {
+    0% {
+        transform: translate(var(--start-x), var(--start-y));
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    85% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(var(--end-x), var(--end-y));
+        opacity: 0;
+    }
+}
