@@ -13,6 +13,7 @@ public interface ITwitchWebSocketService
     PredictionStatusSnapshot? GetPredictionStatus();
     AdBreakStatusSnapshot? GetAdBreakStatus();
     event EventHandler<ChatMessageEvent>? ChatMessageReceived;
+    event EventHandler<ChatMessageDeleteEvent>? ChatMessageDeleted;
     event EventHandler<RewardRedemptionEvent>? RewardRedemptionReceived;
     event EventHandler<StreamStatusChangedEvent>? StreamStatusChanged;
     event EventHandler<RaidEvent>? RaidReceived;
@@ -89,6 +90,7 @@ public class TwitchWebSocketService(
     private bool notificationHandlersBuilt = false;
 
     public event EventHandler<ChatMessageEvent>? ChatMessageReceived;
+    public event EventHandler<ChatMessageDeleteEvent>? ChatMessageDeleted;
     public event EventHandler<RewardRedemptionEvent>? RewardRedemptionReceived;
     public event EventHandler<StreamStatusChangedEvent>? StreamStatusChanged;
     public event EventHandler<RaidEvent>? RaidReceived;
@@ -220,6 +222,7 @@ public class TwitchWebSocketService(
         notificationHandlers = new Dictionary<string, Action<string>>
         {
             ["channel.chat.message"] = HandleChatMessage,
+            ["channel.chat.message_delete"] = HandleChatMessageDelete,
             ["channel.channel_points_custom_reward_redemption.add"] = HandleRewardRedemption,
             ["stream.online"] = HandleStreamOnline,
             ["stream.offline"] = HandleStreamOffline,
@@ -322,6 +325,7 @@ public class TwitchWebSocketService(
         if (connection.Role == TwitchUserRole.Bot)
         {
             await SubscribeToChannelChatMessages(connection.SessionId, cancellationToken);
+            await SubscribeToChannelChatMessageDelete(connection.SessionId, cancellationToken);
         }
         else
         {
@@ -414,6 +418,29 @@ public class TwitchWebSocketService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to parse channel.chat.message notification");
+        }
+    }
+
+    private void HandleChatMessageDelete(string rawMessage)
+    {
+        try
+        {
+            var notification = JsonSerializer.Deserialize<ChatMessageDeleteNotification>(rawMessage);
+            var deletedMessage = notification?.Payload.Event;
+            if (deletedMessage is null)
+            {
+                logger.LogWarning("channel.chat.message_delete notification without an event payload");
+                return;
+            }
+
+            logger.LogInformation("Chat message deleted #{Broadcaster} {Target}: {MessageId}",
+                deletedMessage.BroadcasterUserLogin, deletedMessage.TargetUserLogin, deletedMessage.MessageId);
+
+            ChatMessageDeleted?.Invoke(this, deletedMessage);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to parse channel.chat.message_delete notification");
         }
     }
 
@@ -1101,6 +1128,52 @@ public class TwitchWebSocketService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error creating chat message subscription");
+        }
+    }
+
+    // Same condition shape and auth requirement as channel.chat.message (user:read:chat,
+    // already in BotScopes) - no new OAuth scope needed. Must run on the same WebSocket
+    // session as channel.chat.message since both are authorized by the Bot's token.
+    private async Task SubscribeToChannelChatMessageDelete(string? sessionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subscriptionRequest = new
+            {
+                type = "channel.chat.message_delete",
+                version = "1",
+                condition = new
+                {
+                    broadcaster_user_id = broadcasterId,
+                    user_id = userId
+                },
+                transport = new
+                {
+                    method = "websocket",
+                    session_id = sessionId
+                }
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "helix/eventsub/subscriptions")
+            {
+                Content = JsonContent.Create(subscriptionRequest)
+            };
+            request.Options.Set(HttpRequestOptionKeys.UserRole, TwitchUserRole.Bot);
+            var response = await twitchHttpClientUserAccess.SendAsync(request, cancellationToken);
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogError("Failed to create subscription. Status: {StatusCode}, Response: {Response}",
+                    response.StatusCode, content);
+                return;
+            }
+
+            logger.LogInformation("Successfully created chat message delete subscription. Response: {Response}", content);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error creating chat message delete subscription");
         }
     }
 

@@ -44,12 +44,62 @@ public record ChatMessageEvent
 
     [JsonPropertyName("reply")]
     public ChatMessageReply? Reply { get; init; }
+
+    [JsonPropertyName("color")]
+    public string? Color { get; init; }
+
+    [JsonPropertyName("badges")]
+    public List<ChatMessageBadge> Badges { get; init; } = [];
 }
 
 public record ChatMessageBody
 {
     [JsonPropertyName("text")]
     public string Text { get; init; } = null!;
+
+    [JsonPropertyName("fragments")]
+    public List<ChatMessageFragment> Fragments { get; init; } = [];
+}
+
+// type is "text", "cheermote", "emote", or "mention" - only emote is mapped further
+// since it's the only one the overlay needs beyond the fragment's own text.
+public record ChatMessageFragment
+{
+    [JsonPropertyName("type")]
+    public string Type { get; init; } = null!;
+
+    [JsonPropertyName("text")]
+    public string Text { get; init; } = null!;
+
+    [JsonPropertyName("emote")]
+    public ChatMessageEmote? Emote { get; init; }
+}
+
+public record ChatMessageEmote
+{
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = null!;
+
+    [JsonPropertyName("emote_set_id")]
+    public string EmoteSetId { get; init; } = null!;
+
+    [JsonPropertyName("owner_id")]
+    public string OwnerId { get; init; } = null!;
+
+    [JsonPropertyName("format")]
+    public List<string> Format { get; init; } = [];
+}
+
+public record ChatMessageBadge
+{
+    [JsonPropertyName("set_id")]
+    public string SetId { get; init; } = null!;
+
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = null!;
+
+    [JsonPropertyName("info")]
+    public string Info { get; init; } = null!;
 }
 
 public record ChatMessageReply
