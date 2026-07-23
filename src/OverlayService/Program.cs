@@ -56,6 +56,8 @@ app.MapGet("/overlay/{slug}", (string slug, IOverlayRegistry registry, IWebHostE
         : Results.NotFound();
 });
 
+app.MapEmotesOverlay();
+
 app.Run();
 
 public record OverlayModuleResponse(string Slug, string DisplayName, string Description, int DefaultWidth, int DefaultHeight);
