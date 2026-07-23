@@ -1,0 +1,81 @@
+/* "Stream starting soon" screen (#134). Card floats on the transparent
+   overlay-reset canvas — the gradient/shadow below is the only thing OBS
+   actually composites, everything outside the card stays see-through. */
+
+body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 3rem 4rem;
+    border-radius: 2rem;
+    background: linear-gradient(135deg, #6d28d9 0%, #db2777 60%, #f97316 100%);
+    box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.45);
+    color: #fff;
+    text-align: center;
+}
+
+.eyebrow {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.85;
+}
+
+h1 {
+    margin: 0 0 0.5rem;
+    font-size: 2.5rem;
+    font-weight: 800;
+    text-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.35);
+}
+
+.countdown {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.countdown-value,
+#countdown-value {
+    font-size: 5rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em;
+    text-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.35);
+    animation: breathe 2.4s ease-in-out infinite;
+}
+
+.countdown-label {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+    opacity: 0.85;
+}
+
+.fallback {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+    opacity: 0.9;
+}
+
+@keyframes breathe {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.03);
+        opacity: 0.9;
+    }
+}
