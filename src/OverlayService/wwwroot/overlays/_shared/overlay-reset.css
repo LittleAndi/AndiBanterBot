@@ -1,0 +1,33 @@
+/* CSS reset for AndiBanterBot OBS browser-source overlays. Transparent
+   background so the overlay composites over the scene, no scrollbars or margins,
+   and the page pinned to the fixed browser-source viewport so nothing shifts the
+   composited layer. Every module's page includes this before its own styles. */
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* Overlays sit on top of live gameplay; honour the operator's reduced-motion
+   preference so overlay animation never competes with the stream itself. */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}
