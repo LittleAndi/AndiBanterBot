@@ -17,6 +17,7 @@ var twitch = builder.AddProject<Projects.TwitchService>("twitch")
 var overlays = builder.AddProject<Projects.OverlayService>("overlays")
     .WithEnvironment("ASPNETCORE_ENVIRONMENT", environment)
     .WithEnvironment("DOTNET_ENVIRONMENT", environment)
+    .WithReference(twitch)
     .WithExternalHttpEndpoints();
 
 builder.AddProject<Projects.Web>("web")
