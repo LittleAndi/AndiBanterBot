@@ -1,5 +1,6 @@
 using OverlayService;
 using OverlayService.Overlays;
+using OverlayService.Overlays.Starting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -55,6 +56,8 @@ app.MapGet("/overlay/{slug}", (string slug, IOverlayRegistry registry, IWebHostE
         ? Results.File(indexPath, "text/html")
         : Results.NotFound();
 });
+
+app.MapStartingOverlay();
 
 app.Run();
 
