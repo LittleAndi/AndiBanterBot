@@ -12,6 +12,7 @@ public static class DependencyInjection
         {
             client.BaseAddress = new("https+http://twitch");
         });
+        services.AddHttpClient("pubg", client => client.BaseAddress = new("https+http://pubg"));
 
         return services;
     }

@@ -62,6 +62,7 @@ app.MapEndingOverlay();
 app.MapChatOverlay();
 app.MapEmotesOverlay();
 app.MapHighlightsOverlay();
+app.MapPubgStatsOverlay();
 
 app.Run();
 
