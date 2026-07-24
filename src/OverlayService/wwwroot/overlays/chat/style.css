@@ -1,0 +1,78 @@
+/* AndiBanterBot chat overlay. Bottom-anchored feed so new messages push up from
+   where a streamer's chat box conventionally sits; --chat-font-size is set from
+   app.js off the ?fontSize= config param. */
+
+body {
+    display: flex;
+    align-items: flex-end;
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: var(--chat-font-size, 16px);
+}
+
+#chat-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    padding: 8px;
+}
+
+.message {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #f2f2f2;
+    line-height: 1.4;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.message.entering {
+    opacity: 0;
+    transform: translateY(12px);
+}
+
+.message.leaving {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+.message.deleted {
+    opacity: 0.5;
+}
+
+.message.deleted .text {
+    text-decoration: line-through;
+}
+
+.badges {
+    display: inline-flex;
+    gap: 2px;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.2em;
+    height: 1.2em;
+    border-radius: 3px;
+    background: #772ce8;
+    color: #fff;
+    font-size: 0.7em;
+    font-weight: 700;
+}
+
+.chatter {
+    font-weight: 700;
+}
+
+.emote {
+    height: 1.4em;
+    vertical-align: middle;
+}
