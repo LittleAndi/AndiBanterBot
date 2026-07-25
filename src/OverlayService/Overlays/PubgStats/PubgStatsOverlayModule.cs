@@ -14,7 +14,11 @@ public static class PubgStatsOverlayModule
             "Compact kills/placement/damage readout for the streamer's most recent PUBG match.",
             360,
             160,
-            OverlayModule.DefaultAssetBundlePath(Slug)));
+            OverlayModule.DefaultAssetBundlePath(Slug),
+            Settings:
+            [
+                new OverlaySettingDefinition("pollIntervalMs", "Poll interval (ms)", OverlaySettingType.Number, "7000"),
+            ]));
 
         // Proxies PubgService's `GET stats/recent` (most-recent-first) and trims it to
         // just the newest match — the overlay only ever shows the latest game's stats.

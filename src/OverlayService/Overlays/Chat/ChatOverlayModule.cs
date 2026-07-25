@@ -14,7 +14,13 @@ public static class ChatOverlayModule
             Description: "Live Twitch chat feed for an OBS browser source.",
             DefaultWidth: 400,
             DefaultHeight: 600,
-            AssetBundlePath: OverlayModule.DefaultAssetBundlePath("chat")));
+            AssetBundlePath: OverlayModule.DefaultAssetBundlePath("chat"),
+            RequiresBotAuth: true,
+            Settings:
+            [
+                new OverlaySettingDefinition("max", "Visible messages", OverlaySettingType.Number, "12"),
+                new OverlaySettingDefinition("fontSize", "Font size (px)", OverlaySettingType.Number, "16"),
+            ]));
 
         app.MapGet("/overlay/chat/events", async (IHttpClientFactory httpClientFactory, CancellationToken ct) =>
         {

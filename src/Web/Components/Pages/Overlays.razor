@@ -39,14 +39,63 @@
         <ul class="overlay-list">
             @foreach (var overlay in overlays)
             {
-                var url = OverlayApiClient.BuildBrowserSourceUrl(overlay.Slug);
+                var url = BuildUrl(overlay);
                 var copied = copiedSlug == overlay.Slug;
+                var expanded = expandedSlugs.Contains(overlay.Slug);
+                var primarySettings = overlay.Settings.Where(s => s.IsPrimary).ToArray();
+                var secondarySettings = overlay.Settings.Where(s => !s.IsPrimary).ToArray();
+
                 <li class="overlay-card" @key="overlay.Slug">
                     <div class="overlay-head">
                         <span class="overlay-name">@overlay.DisplayName</span>
-                        <span class="overlay-dims mono" title="Recommended OBS browser-source size">@overlay.DefaultWidth×@overlay.DefaultHeight</span>
+                        <div class="overlay-meta">
+                            <span class="overlay-dims mono" title="Recommended OBS browser-source size">@overlay.DefaultWidth×@overlay.DefaultHeight</span>
+                            @if (overlay.RequiresBotAuth)
+                            {
+                                <span class="overlay-badge overlay-badge--bot" title="Needs the Bot account's Twitch auth">🤖 Bot</span>
+                            }
+                            @if (overlay.RequiresBroadcasterAuth)
+                            {
+                                <span class="overlay-badge overlay-badge--broadcaster" title="Needs the Broadcaster account's Twitch auth">📺 Broadcaster</span>
+                            }
+                            @if (!overlay.RequiresBotAuth && !overlay.RequiresBroadcasterAuth)
+                            {
+                                <span class="overlay-badge overlay-badge--none">No auth needed</span>
+                            }
+                        </div>
                     </div>
                     <p class="overlay-desc">@overlay.Description</p>
+
+                    @if (primarySettings.Length > 0)
+                    {
+                        <div class="overlay-settings">
+                            @foreach (var setting in primarySettings)
+                            {
+                                @RenderSetting(overlay, setting)
+                            }
+                        </div>
+                    }
+
+                    @if (secondarySettings.Length > 0)
+                    {
+                        <button type="button"
+                                class="overlay-customize-toggle"
+                                aria-expanded="@(expanded ? "true" : "false")"
+                                aria-controls="@($"overlay-customize-{overlay.Slug}")"
+                                @onclick="() => ToggleExpanded(overlay.Slug)">
+                            <span class="overlay-customize-chevron @(expanded ? "overlay-customize-chevron--open" : "")" aria-hidden="true">▸</span>
+                            @(expanded ? "Hide customization" : "Customize")
+                        </button>
+                        <div id="@($"overlay-customize-{overlay.Slug}")" class="overlay-customize-panel @(expanded ? "overlay-customize-panel--open" : "")">
+                            <div class="overlay-settings overlay-settings--secondary">
+                                @foreach (var setting in secondarySettings)
+                                {
+                                    @RenderSetting(overlay, setting)
+                                }
+                            </div>
+                        </div>
+                    }
+
                     <div class="overlay-url-row">
                         <code class="overlay-url mono">@url</code>
                         <button type="button"
@@ -66,15 +115,105 @@
     private OverlayModuleItem[]? overlays;
     private bool loading = true;
     private string? copiedSlug;
+    private readonly Dictionary<string, Dictionary<string, string>> currentValues = new();
+    private readonly HashSet<string> expandedSlugs = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             overlays = await OverlayApiClient.GetOverlays();
+            if (overlays is not null)
+            {
+                foreach (var overlay in overlays)
+                {
+                    currentValues[overlay.Slug] = overlay.Settings.ToDictionary(s => s.Key, s => s.DefaultValue);
+                }
+            }
             loading = false;
             StateHasChanged();
         }
+    }
+
+    // Only settings that differ from their default ride on the copied URL, so an
+    // untouched overlay still copies a clean base URL (see the design brief).
+    private string BuildUrl(OverlayModuleItem overlay)
+    {
+        var values = currentValues[overlay.Slug];
+        var changed = overlay.Settings
+            .Where(s => values[s.Key] != s.DefaultValue)
+            .ToDictionary(s => s.Key, s => values[s.Key]);
+
+        return OverlayApiClient.BuildBrowserSourceUrl(overlay.Slug, changed);
+    }
+
+    private void ToggleExpanded(string slug)
+    {
+        if (!expandedSlugs.Remove(slug))
+        {
+            expandedSlugs.Add(slug);
+        }
+    }
+
+    private RenderFragment RenderSetting(OverlayModuleItem overlay, OverlaySettingItem setting) => @<label class="overlay-setting-field">
+        <span>@setting.Label</span>
+        @switch (setting.Type)
+        {
+            case OverlaySettingType.Select:
+                <select class="overlay-setting-input"
+                        value="@currentValues[overlay.Slug][setting.Key]"
+                        @onchange="e => SetValue(overlay.Slug, setting.Key, e.Value)">
+                    @foreach (var option in setting.Options ?? [])
+                    {
+                        <option value="@option">@option</option>
+                    }
+                </select>
+                break;
+            case OverlaySettingType.DateTime:
+                <div class="overlay-quickset">
+                    @foreach (var minutes in QuickSetMinutes)
+                    {
+                        <button type="button" class="overlay-quickset-btn" @onclick="() => SetRelativeStart(overlay.Slug, setting.Key, minutes)">in @FormatQuickSetLabel(minutes)</button>
+                    }
+                </div>
+                <input class="overlay-setting-input" type="datetime-local"
+                       value="@currentValues[overlay.Slug][setting.Key]"
+                       @onchange="e => SetValue(overlay.Slug, setting.Key, e.Value)" />
+                break;
+            case OverlaySettingType.Number:
+                <input class="overlay-setting-input" type="number"
+                       value="@currentValues[overlay.Slug][setting.Key]"
+                       @oninput="e => SetValue(overlay.Slug, setting.Key, e.Value)" />
+                break;
+            default:
+                <input class="overlay-setting-input" type="text"
+                       value="@currentValues[overlay.Slug][setting.Key]"
+                       @oninput="e => SetValue(overlay.Slug, setting.Key, e.Value)" />
+                break;
+        }
+        @if (!string.IsNullOrEmpty(setting.HelperText) && string.IsNullOrWhiteSpace(currentValues[overlay.Slug][setting.Key]))
+        {
+            <span class="overlay-setting-helper">⏳ @setting.HelperText</span>
+        }
+    </label>;
+
+    private void SetValue(string slug, string key, object? value)
+    {
+        currentValues[slug][key] = value?.ToString() ?? string.Empty;
+    }
+
+    // Small streamers rarely run to a fixed schedule - "starts in 15 minutes" is the
+    // realistic entry point, not a calendar pick. Still stores an absolute timestamp
+    // (computed once, now), so the countdown survives an OBS browser-source reload
+    // instead of restarting from N minutes every time the page reloads.
+    private static readonly int[] QuickSetMinutes = [5, 10, 15, 30, 60];
+
+    private static string FormatQuickSetLabel(int minutes) =>
+        minutes % 60 == 0 ? $"{minutes / 60}h" : $"{minutes}m";
+
+    private void SetRelativeStart(string slug, string key, int minutesFromNow)
+    {
+        currentValues[slug][key] = DateTime.Now.AddMinutes(minutesFromNow).ToString("yyyy-MM-ddTHH:mm");
     }
 
     private async Task CopyUrl(string slug, string url)

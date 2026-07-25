@@ -5,6 +5,17 @@ public class OverlayApiClient(IHttpClientFactory httpClientFactory, IConfigurati
     private readonly HttpClient httpClient = httpClientFactory.CreateClient("overlays");
     private readonly string publicBaseUrl = configuration["Overlays:PublicBaseUrl"]?.TrimEnd('/') ?? string.Empty;
 
+    // Aspire injects the "overlays" resource's actual resolved endpoint addresses as
+    // services:overlays:<endpoint>:<index> config (from the services__overlays__* env
+    // vars the AppHost sets, re-resolved fresh on every run) - this is the real,
+    // browser-reachable address, unlike "https+http://overlays", which is only a
+    // logical placeholder meaningful to the service-discovery HttpClient handler
+    // and shows up unresolved if surfaced directly (see git history for why this
+    // isn't read off the GetOverlays() response instead).
+    private readonly string? resolvedBaseUrl =
+        configuration["services:overlays:https:0"]?.TrimEnd('/')
+        ?? configuration["services:overlays:http:0"]?.TrimEnd('/');
+
     // Same fail-fast reasoning as TwitchApiClient: read as "unreachable" within a
     // couple of seconds instead of waiting out the resilience handler's retry budget.
     public async Task<OverlayModuleItem[]?> GetOverlays()
@@ -22,10 +33,51 @@ public class OverlayApiClient(IHttpClientFactory httpClientFactory, IConfigurati
 
     // The browser-source URL the streamer pastes into OBS. Overlays are served by
     // OverlayService, not Web, so the public host comes from Overlays:PublicBaseUrl
-    // config; when that's unset we hand back the relative path for the operator to
-    // complete against wherever OverlayService is reachable.
-    public string BuildBrowserSourceUrl(string slug) =>
-        string.IsNullOrEmpty(publicBaseUrl) ? $"/overlay/{slug}" : $"{publicBaseUrl}/overlay/{slug}";
+    // config when set (production override); otherwise falls back to the address
+    // resolved by GetOverlays(), and only to a bare relative path if that never ran.
+    // queryParams carries whatever settings the operator has changed from their
+    // defaults - see Overlays.razor - so the copied URL bakes those in.
+    public string BuildBrowserSourceUrl(string slug, IReadOnlyDictionary<string, string>? queryParams = null)
+    {
+        var baseUrl = !string.IsNullOrEmpty(publicBaseUrl) ? publicBaseUrl : resolvedBaseUrl;
+        var path = baseUrl is null ? $"/overlay/{slug}" : $"{baseUrl}/overlay/{slug}";
+
+        if (queryParams is null || queryParams.Count == 0)
+        {
+            return path;
+        }
+
+        var query = string.Join("&", queryParams.Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
+        return $"{path}?{query}";
+    }
 }
 
-public record OverlayModuleItem(string Slug, string DisplayName, string Description, int DefaultWidth, int DefaultHeight);
+public record OverlayModuleItem(
+    string Slug,
+    string DisplayName,
+    string Description,
+    int DefaultWidth,
+    int DefaultHeight,
+    bool RequiresBotAuth,
+    bool RequiresBroadcasterAuth,
+    IReadOnlyList<OverlaySettingItem> Settings);
+
+// Mirrors OverlayService's OverlaySettingResponse/OverlaySettingDefinition - the two
+// projects only share a JSON contract, not a project reference (see the OverlayModule
+// duplication this already follows).
+public record OverlaySettingItem(
+    string Key,
+    string Label,
+    OverlaySettingType Type,
+    string DefaultValue,
+    IReadOnlyList<string>? Options,
+    string? HelperText,
+    bool IsPrimary);
+
+public enum OverlaySettingType
+{
+    Text,
+    Number,
+    Select,
+    DateTime,
+}

@@ -15,6 +15,17 @@ public static class StartingOverlayModule
             Description: "Countdown screen shown before the stream goes live.",
             DefaultWidth: 1920,
             DefaultHeight: 1080,
-            AssetBundlePath: OverlayModule.DefaultAssetBundlePath("starting")));
+            AssetBundlePath: OverlayModule.DefaultAssetBundlePath("starting"),
+            Settings:
+            [
+                new OverlaySettingDefinition("title", "Title", OverlaySettingType.Text, "Stream starting soon!", IsPrimary: true),
+                new OverlaySettingDefinition(
+                    "startsAt",
+                    "Starts at",
+                    OverlaySettingType.DateTime,
+                    "",
+                    HelperText: "Not set - shows a static message instead of a countdown",
+                    IsPrimary: true),
+            ]));
     }
 }

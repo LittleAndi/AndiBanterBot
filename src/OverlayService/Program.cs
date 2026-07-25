@@ -34,7 +34,17 @@ app.UseStaticFiles();
 // module registers itself from its own future issue.
 app.MapGet("/overlays", (IOverlayRegistry registry) =>
     Results.Ok(registry.List()
-        .Select(m => new OverlayModuleResponse(m.Slug, m.DisplayName, m.Description, m.DefaultWidth, m.DefaultHeight))
+        .Select(m => new OverlayModuleResponse(
+            m.Slug,
+            m.DisplayName,
+            m.Description,
+            m.DefaultWidth,
+            m.DefaultHeight,
+            m.RequiresBotAuth,
+            m.RequiresBroadcasterAuth,
+            m.Settings
+                .Select(s => new OverlaySettingResponse(s.Key, s.Label, s.Type, s.DefaultValue, s.Options, s.HelperText, s.IsPrimary))
+                .ToArray()))
         .ToArray()));
 
 // Browser-source entrypoint: serves wwwroot/{AssetBundlePath}/index.html for a
@@ -66,4 +76,21 @@ app.MapPubgStatsOverlay();
 
 app.Run();
 
-public record OverlayModuleResponse(string Slug, string DisplayName, string Description, int DefaultWidth, int DefaultHeight);
+public record OverlayModuleResponse(
+    string Slug,
+    string DisplayName,
+    string Description,
+    int DefaultWidth,
+    int DefaultHeight,
+    bool RequiresBotAuth,
+    bool RequiresBroadcasterAuth,
+    IReadOnlyList<OverlaySettingResponse> Settings);
+
+public record OverlaySettingResponse(
+    string Key,
+    string Label,
+    OverlaySettingType Type,
+    string DefaultValue,
+    IReadOnlyList<string>? Options,
+    string? HelperText,
+    bool IsPrimary);
