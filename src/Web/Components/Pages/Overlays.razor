@@ -66,12 +66,16 @@
                     </div>
                     <p class="overlay-desc">@overlay.Description</p>
 
-                    @if (primarySettings.Length > 0)
+                    @if (primarySettings.Length > 0 || overlay.Slug == "starting")
                     {
                         <div class="overlay-settings">
                             @foreach (var setting in primarySettings)
                             {
                                 @RenderSetting(overlay, setting)
+                            }
+                            @if (overlay.Slug == "starting")
+                            {
+                                @RenderStartingCountdown()
                             }
                         </div>
                     }
@@ -117,6 +121,8 @@
     private string? copiedSlug;
     private readonly Dictionary<string, Dictionary<string, string>> currentValues = new();
     private readonly HashSet<string> expandedSlugs = new();
+    private DateTimeOffset? startingCountdown;
+    private bool startingCountdownSaveFailed;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -128,6 +134,11 @@
                 foreach (var overlay in overlays)
                 {
                     currentValues[overlay.Slug] = overlay.Settings.ToDictionary(s => s.Key, s => s.DefaultValue);
+                }
+
+                if (overlays.Any(o => o.Slug == "starting"))
+                {
+                    startingCountdown = await OverlayApiClient.GetStartingCountdown();
                 }
             }
             loading = false;
@@ -169,17 +180,6 @@
                     }
                 </select>
                 break;
-            case OverlaySettingType.DateTime:
-                <div class="overlay-quickset">
-                    @foreach (var minutes in QuickSetMinutes)
-                    {
-                        <button type="button" class="overlay-quickset-btn" @onclick="() => SetRelativeStart(overlay.Slug, setting.Key, minutes)">in @FormatQuickSetLabel(minutes)</button>
-                    }
-                </div>
-                <input class="overlay-setting-input" type="datetime-local"
-                       value="@currentValues[overlay.Slug][setting.Key]"
-                       @onchange="e => SetValue(overlay.Slug, setting.Key, e.Value)" />
-                break;
             case OverlaySettingType.Number:
                 <input class="overlay-setting-input" type="number"
                        value="@currentValues[overlay.Slug][setting.Key]"
@@ -202,18 +202,67 @@
         currentValues[slug][key] = value?.ToString() ?? string.Empty;
     }
 
+    // The starting overlay's countdown target is set here and persisted server-side
+    // (see OverlayApiClient.SetStartingCountdown) rather than baked into the copied
+    // URL - so the URL pasted into OBS never needs to change from stream to stream.
     // Small streamers rarely run to a fixed schedule - "starts in 15 minutes" is the
-    // realistic entry point, not a calendar pick. Still stores an absolute timestamp
-    // (computed once, now), so the countdown survives an OBS browser-source reload
-    // instead of restarting from N minutes every time the page reloads.
+    // realistic entry point, not a calendar pick - so the picker stays as a fallback.
     private static readonly int[] QuickSetMinutes = [5, 10, 15, 30, 60];
 
     private static string FormatQuickSetLabel(int minutes) =>
         minutes % 60 == 0 ? $"{minutes / 60}h" : $"{minutes}m";
 
-    private void SetRelativeStart(string slug, string key, int minutesFromNow)
+    private RenderFragment RenderStartingCountdown() => @<label class="overlay-setting-field">
+        <span>Starts at</span>
+        <div class="overlay-quickset">
+            @foreach (var minutes in QuickSetMinutes)
+            {
+                <button type="button" class="overlay-quickset-btn" @onclick="() => SetStartingCountdown(minutes)">in @FormatQuickSetLabel(minutes)</button>
+            }
+            @if (startingCountdown is not null)
+            {
+                <button type="button" class="overlay-quickset-btn" @onclick="ClearStartingCountdown">clear</button>
+            }
+        </div>
+        <input class="overlay-setting-input" type="datetime-local"
+               value="@(startingCountdown?.LocalDateTime.ToString("yyyy-MM-ddTHH:mm"))"
+               @onchange="OnStartingCountdownPicked" />
+        @if (startingCountdownSaveFailed)
+        {
+            <span class="overlay-setting-helper">⚠️ Couldn't save - check the overlay service and try again</span>
+        }
+        else if (startingCountdown is null)
+        {
+            <span class="overlay-setting-helper">⏳ Not set - shows a static message instead of a countdown</span>
+        }
+        else
+        {
+            <span class="overlay-setting-helper">🔴 Live on the overlay now - the OBS URL never has to change</span>
+        }
+    </label>;
+
+    private Task SetStartingCountdown(int minutesFromNow) =>
+        ApplyStartingCountdown(DateTimeOffset.Now.AddMinutes(minutesFromNow));
+
+    private Task ClearStartingCountdown() => ApplyStartingCountdown(null);
+
+    private async Task OnStartingCountdownPicked(ChangeEventArgs e)
     {
-        currentValues[slug][key] = DateTime.Now.AddMinutes(minutesFromNow).ToString("yyyy-MM-ddTHH:mm");
+        if (DateTime.TryParse(e.Value?.ToString(), out var local))
+        {
+            await ApplyStartingCountdown(new DateTimeOffset(DateTime.SpecifyKind(local, DateTimeKind.Local)));
+        }
+    }
+
+    private async Task ApplyStartingCountdown(DateTimeOffset? target)
+    {
+        var success = await OverlayApiClient.SetStartingCountdown(target);
+        startingCountdownSaveFailed = !success;
+        if (success)
+        {
+            startingCountdown = target;
+        }
+        StateHasChanged();
     }
 
     private async Task CopyUrl(string slug, string url)

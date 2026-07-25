@@ -51,9 +51,11 @@ app.MapGet("/overlays", (IOverlayRegistry registry) =>
 // registered slug. Per-instance config rides on the query string (?theme=...),
 // read client-side by overlay-client.js — nothing is persisted server-side.
 //
-// Reserved convention (not implemented here — nothing consumes it yet): a module
-// that needs data exposes it at /overlay/{slug}/events, polled by the shared
-// client helper.
+// Convention for a module that needs server-persisted data instead: expose it
+// at /overlay/{slug}/events, polled by the shared client helper's pollEvents().
+// StartingOverlayModule is the first (and so far only) module to use this —
+// its countdown target needs to change every stream without the OBS
+// browser-source URL itself changing.
 app.MapGet("/overlay/{slug}", (string slug, IOverlayRegistry registry, IWebHostEnvironment env) =>
 {
     if (!registry.TryGet(slug, out var module))

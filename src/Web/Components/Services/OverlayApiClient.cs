@@ -50,7 +50,40 @@ public class OverlayApiClient(IHttpClientFactory httpClientFactory, IConfigurati
         var query = string.Join("&", queryParams.Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
         return $"{path}?{query}";
     }
+
+    // The starting overlay's countdown target lives server-side (OverlayService's
+    // IStartingCountdownStore), not on the browser-source URL - see StartingOverlayModule
+    // for why. Reads/writes hit its /overlay/starting/events endpoint directly.
+    public async Task<DateTimeOffset?> GetStartingCountdown()
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            var response = await httpClient.GetFromJsonAsync<StartingCountdownItem>("overlay/starting/events", cts.Token);
+            return response?.StartsAt;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> SetStartingCountdown(DateTimeOffset? startsAt)
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            var response = await httpClient.PostAsJsonAsync("overlay/starting/events", new StartingCountdownItem(startsAt), cts.Token);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        {
+            return false;
+        }
+    }
 }
+
+public record StartingCountdownItem(DateTimeOffset? StartsAt);
 
 public record OverlayModuleItem(
     string Slug,
@@ -79,5 +112,4 @@ public enum OverlaySettingType
     Text,
     Number,
     Select,
-    DateTime,
 }

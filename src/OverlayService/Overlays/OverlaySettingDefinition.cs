@@ -22,5 +22,4 @@ public enum OverlaySettingType
     Text,
     Number,
     Select,
-    DateTime,
 }

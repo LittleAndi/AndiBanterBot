@@ -1,8 +1,13 @@
 namespace OverlayService.Overlays.Starting;
 
-// "Stream starting soon" screen. Static/client-side only (see #134) — the
-// countdown target arrives as a query-string param (?startsAt=...), so there's
-// no data endpoint to register alongside the module itself.
+// "Stream starting soon" screen. The title still rides the query string like
+// every other overlay setting (see overlayConfig() in overlay-client.js), but
+// the countdown target does not (see #151 follow-up) — OBS Browser sources
+// store whatever URL you paste in, so baking a fresh startsAt into it meant
+// re-pasting the URL before every stream. Instead the target is persisted
+// server-side via IStartingCountdownStore and served from /overlay/starting/events,
+// which app.js polls (see pollEvents() in overlay-client.js) — the reserved
+// per-module data-endpoint convention mentioned in Program.cs, now in use.
 public static class StartingOverlayModule
 {
     public static void MapStartingOverlay(this WebApplication app)
@@ -19,13 +24,19 @@ public static class StartingOverlayModule
             Settings:
             [
                 new OverlaySettingDefinition("title", "Title", OverlaySettingType.Text, "Stream starting soon!", IsPrimary: true),
-                new OverlaySettingDefinition(
-                    "startsAt",
-                    "Starts at",
-                    OverlaySettingType.DateTime,
-                    "",
-                    HelperText: "Not set - shows a static message instead of a countdown",
-                    IsPrimary: true),
             ]));
+
+        var countdown = app.Services.GetRequiredService<IStartingCountdownStore>();
+
+        app.MapGet("/overlay/starting/events", () => Results.Ok(new StartingCountdownResponse(countdown.Get())));
+
+        app.MapPost("/overlay/starting/events", (StartingCountdownRequest request) =>
+        {
+            countdown.Set(request.StartsAt);
+            return Results.Ok(new StartingCountdownResponse(countdown.Get()));
+        });
     }
 }
+
+public record StartingCountdownRequest(DateTimeOffset? StartsAt);
+public record StartingCountdownResponse(DateTimeOffset? StartsAt);
