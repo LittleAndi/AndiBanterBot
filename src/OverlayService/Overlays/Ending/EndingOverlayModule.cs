@@ -12,7 +12,13 @@ public static class EndingOverlayModule
             Description: "Outro/BRB screen with a customizable sign-off message for when the stream wraps up.",
             DefaultWidth: 1920,
             DefaultHeight: 1080,
-            AssetBundlePath: OverlayModule.DefaultAssetBundlePath("ending")));
+            AssetBundlePath: OverlayModule.DefaultAssetBundlePath("ending"),
+            Settings:
+            [
+                new OverlaySettingDefinition("title", "Title", OverlaySettingType.Text, "That's a Wrap!", IsPrimary: true),
+                new OverlaySettingDefinition("message", "Message", OverlaySettingType.Text, "Thanks for hanging out - chat was a vibe today.", IsPrimary: true),
+                new OverlaySettingDefinition("nextStream", "Next stream", OverlaySettingType.Text, "", IsPrimary: true),
+            ]));
 
         return app;
     }

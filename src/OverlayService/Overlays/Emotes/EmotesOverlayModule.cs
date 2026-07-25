@@ -19,7 +19,15 @@ public static class EmotesOverlayModule
             Description: "Animates recently used chat emotes drifting across the scene.",
             DefaultWidth: 1920,
             DefaultHeight: 1080,
-            AssetBundlePath: OverlayModule.DefaultAssetBundlePath("emotes")));
+            AssetBundlePath: OverlayModule.DefaultAssetBundlePath("emotes"),
+            RequiresBotAuth: true,
+            Settings:
+            [
+                new OverlaySettingDefinition("direction", "Direction", OverlaySettingType.Select, "down", ["down", "up", "left", "right"]),
+                new OverlaySettingDefinition("speed", "Speed (seconds to cross)", OverlaySettingType.Number, "6"),
+                new OverlaySettingDefinition("size", "Emote size (px)", OverlaySettingType.Number, "64"),
+                new OverlaySettingDefinition("pollMs", "Poll interval (ms)", OverlaySettingType.Number, "2500"),
+            ]));
 
         app.MapGet("/overlay/emotes/events", async (IHttpClientFactory httpClientFactory, CancellationToken ct) =>
         {

@@ -34,16 +34,28 @@ app.UseStaticFiles();
 // module registers itself from its own future issue.
 app.MapGet("/overlays", (IOverlayRegistry registry) =>
     Results.Ok(registry.List()
-        .Select(m => new OverlayModuleResponse(m.Slug, m.DisplayName, m.Description, m.DefaultWidth, m.DefaultHeight))
+        .Select(m => new OverlayModuleResponse(
+            m.Slug,
+            m.DisplayName,
+            m.Description,
+            m.DefaultWidth,
+            m.DefaultHeight,
+            m.RequiresBotAuth,
+            m.RequiresBroadcasterAuth,
+            m.Settings
+                .Select(s => new OverlaySettingResponse(s.Key, s.Label, s.Type, s.DefaultValue, s.Options, s.HelperText, s.IsPrimary))
+                .ToArray()))
         .ToArray()));
 
 // Browser-source entrypoint: serves wwwroot/{AssetBundlePath}/index.html for a
 // registered slug. Per-instance config rides on the query string (?theme=...),
 // read client-side by overlay-client.js — nothing is persisted server-side.
 //
-// Reserved convention (not implemented here — nothing consumes it yet): a module
-// that needs data exposes it at /overlay/{slug}/events, polled by the shared
-// client helper.
+// Convention for a module that needs server-persisted data instead: expose it
+// at /overlay/{slug}/events, polled by the shared client helper's pollEvents().
+// StartingOverlayModule is the first (and so far only) module to use this —
+// its countdown target needs to change every stream without the OBS
+// browser-source URL itself changing.
 app.MapGet("/overlay/{slug}", (string slug, IOverlayRegistry registry, IWebHostEnvironment env) =>
 {
     if (!registry.TryGet(slug, out var module))
@@ -66,4 +78,21 @@ app.MapPubgStatsOverlay();
 
 app.Run();
 
-public record OverlayModuleResponse(string Slug, string DisplayName, string Description, int DefaultWidth, int DefaultHeight);
+public record OverlayModuleResponse(
+    string Slug,
+    string DisplayName,
+    string Description,
+    int DefaultWidth,
+    int DefaultHeight,
+    bool RequiresBotAuth,
+    bool RequiresBroadcasterAuth,
+    IReadOnlyList<OverlaySettingResponse> Settings);
+
+public record OverlaySettingResponse(
+    string Key,
+    string Label,
+    OverlaySettingType Type,
+    string DefaultValue,
+    IReadOnlyList<string>? Options,
+    string? HelperText,
+    bool IsPrimary);

@@ -12,9 +12,14 @@ public record OverlayModule(
     string Description,
     int DefaultWidth,
     int DefaultHeight,
-    string AssetBundlePath)
+    string AssetBundlePath,
+    bool RequiresBotAuth = false,
+    bool RequiresBroadcasterAuth = false,
+    IReadOnlyList<OverlaySettingDefinition>? Settings = null)
 {
     // Conventional bundle location for a module that doesn't override it:
     // wwwroot/overlays/{slug}/, served as static files at /overlays/{slug}/.
     public static string DefaultAssetBundlePath(string slug) => $"overlays/{slug}";
+
+    public IReadOnlyList<OverlaySettingDefinition> Settings { get; init; } = Settings ?? [];
 }

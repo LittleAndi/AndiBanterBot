@@ -72,12 +72,21 @@
     align-items: baseline;
     justify-content: space-between;
     gap: var(--space-sm);
+    flex-wrap: wrap;
 }
 
 .overlay-name {
     font-size: var(--text-lg);
     font-weight: 600;
     color: var(--color-ink);
+}
+
+.overlay-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2xs);
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .overlay-dims {
@@ -89,10 +98,146 @@
     padding: 0.125rem var(--space-xs);
 }
 
+/* Auth badges pair an icon with text so the requirement never rests on
+   colour alone; "none" gets a neutral pill rather than being omitted, so its
+   absence still reads as a deliberate answer, not a loading gap. */
+.overlay-badge {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: var(--text-xs);
+    border-radius: 6px;
+    padding: 0.125rem var(--space-xs);
+}
+
+.overlay-badge--bot {
+    color: var(--color-primary-ink);
+    background-color: var(--color-primary-wash);
+    border: 1px solid var(--color-primary-border);
+}
+
+.overlay-badge--broadcaster {
+    color: var(--color-accent-ink);
+    background-color: var(--color-accent-wash);
+    border: 1px solid var(--color-accent-border);
+}
+
+.overlay-badge--none {
+    color: var(--color-muted);
+    background-color: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+}
+
 .overlay-desc {
     font-size: var(--text-sm);
     color: var(--color-muted);
     margin: 0;
+}
+
+.overlay-settings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.overlay-setting-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+}
+
+.overlay-setting-input {
+    font-family: var(--font-sans);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: var(--space-xs) var(--space-sm);
+}
+
+.overlay-setting-input:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+}
+
+.overlay-quickset {
+    display: flex;
+    gap: var(--space-2xs);
+    flex-wrap: wrap;
+}
+
+.overlay-quickset-btn {
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+    background-color: var(--color-surface-raised);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 0.125rem var(--space-sm);
+    cursor: pointer;
+    transition: color var(--duration-fast) var(--ease-out-quart),
+                border-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.overlay-quickset-btn:hover,
+.overlay-quickset-btn:focus-visible {
+    color: var(--color-ink);
+    border-color: var(--color-primary-border);
+}
+
+.overlay-setting-helper {
+    color: var(--color-muted);
+    font-size: var(--text-xs);
+}
+
+.overlay-customize-toggle {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--color-muted);
+    background: none;
+    border: none;
+    padding: var(--space-2xs) 0;
+    cursor: pointer;
+}
+
+.overlay-customize-toggle:hover,
+.overlay-customize-toggle:focus-visible {
+    color: var(--color-ink);
+}
+
+.overlay-customize-chevron {
+    display: inline-block;
+    transition: transform var(--duration-fast) var(--ease-out-quart);
+}
+
+.overlay-customize-chevron--open {
+    transform: rotate(90deg);
+}
+
+/* Grid-rows trick animates height without measuring content or reaching for
+   JS: 0fr collapses the row to nothing, 1fr expands to fit. */
+.overlay-customize-panel {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows var(--duration-slow) var(--ease-out-quart);
+}
+
+.overlay-customize-panel--open {
+    grid-template-rows: 1fr;
+}
+
+.overlay-customize-panel > .overlay-settings {
+    overflow: hidden;
+    min-height: 0;
 }
 
 .overlay-url-row {
@@ -183,6 +328,15 @@
     }
 
     .overlay-copy {
+        transition: none;
+    }
+
+    .overlay-customize-chevron,
+    .overlay-customize-panel {
+        transition: none;
+    }
+
+    .overlay-quickset-btn {
         transition: none;
     }
 }

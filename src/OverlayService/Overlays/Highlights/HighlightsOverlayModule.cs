@@ -14,7 +14,14 @@ public static class HighlightsOverlayModule
             Description: "Toast notification when a clip is auto-created from a hype train finish or a big cheer.",
             DefaultWidth: 500,
             DefaultHeight: 200,
-            AssetBundlePath: OverlayModule.DefaultAssetBundlePath("highlights")));
+            AssetBundlePath: OverlayModule.DefaultAssetBundlePath("highlights"),
+            RequiresBotAuth: true,
+            RequiresBroadcasterAuth: true,
+            Settings:
+            [
+                new OverlaySettingDefinition("pollIntervalMs", "Poll interval (ms)", OverlaySettingType.Number, "7000"),
+                new OverlaySettingDefinition("toastDurationMs", "Toast duration (ms)", OverlaySettingType.Number, "6000"),
+            ]));
 
         app.MapGet("/overlay/highlights/events", async (IHttpClientFactory httpClientFactory, CancellationToken ct) =>
         {
